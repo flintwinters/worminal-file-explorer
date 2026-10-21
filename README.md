@@ -16,3 +16,14 @@ The page cannot read arbitrary filesystem paths; native Worminal integration is 
 
 `apps/explorer` owns the DOM interface. `packages/files` owns path validation and directory indexing.
 Vite with `vite-plugin-singlefile` bundles TypeScript and embeds the script and CSS in `dist/index.html`.
+
+Hyperlinter is pinned as the `tools/hyperlint` submodule. Initialize and run it from this repository:
+
+```sh
+git submodule update --init --recursive
+npm --prefix tools/hyperlint ci --include=dev
+python3 manage.py lint
+```
+
+Lint reports architecture and style policy separately from build/type/behavior checks. It records
+local evidence and checks upstream for updates; it does not automatically fix or baseline findings.

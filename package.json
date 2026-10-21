@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "vite build",
+    "lint": "node --import ./tools/hyperlint/node_modules/tsx/dist/loader.mjs tools/hyperlint/src/cli.ts --format=text",
     "check": "tsc --noEmit && vite build && node tools/check.mjs"
   },
   "devDependencies": {
