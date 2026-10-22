@@ -11,8 +11,12 @@ python3 manage.py build
 
 Open `dist/index.html` in a browser and choose a folder. Browse directories, filter the current
 directory, preview UTF-8 text, and download files. Files stay local and are never modified.
-The folder picker requires browser support for `webkitdirectory` and omits empty folders.
-The page cannot read arbitrary filesystem paths; native Worminal integration is separate work.
+Inside Worminal, the explorer starts at the calling shell directory. Open folder accepts an absolute
+path within the page; directory listing includes empty folders, and text previews are bounded to 1 MiB.
+The host exposes read-only filesystem endpoints only to the embedded Files page.
+
+The standalone folder picker requires browser support for `webkitdirectory` and omits empty folders.
+The standalone page can read only files granted through its picker.
 
 `apps/explorer` owns the DOM interface. `packages/files` owns path validation and directory indexing.
 Vite with `vite-plugin-singlefile` bundles TypeScript and embeds the script and CSS in `dist/index.html`.

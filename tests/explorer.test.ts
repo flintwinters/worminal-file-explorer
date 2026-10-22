@@ -79,3 +79,45 @@ test("single HTML works offline: navigation, filtering, literal names and bounde
   assert.match(document.querySelector("#preview-note")!.textContent!, /limited/);
   dom.window.close();
 });
+
+test("embedded explorer starts at the supplied path and opens folders in page", async () => {
+  const html = await readFile("dist/index.html", "utf8");
+  const requests: string[] = [];
+  const dom = new JSDOM(html, { runScripts: "outside-only", url: "worminal:///files?path=/work%20tree",
+    beforeParse(window) {
+      window.TextDecoder = TextDecoder;
+      window.fetch = async (input: string) => {
+        const destination = new URL(input).searchParams.get("path")!;
+        requests.push(destination);
+        if (destination === "/denied") throw new window.Error("Permission denied");
+        return { ok: true, json: async () => destination === "/empty" ? [] : [
+          [Buffer.from("empty").toString("base64"), true, 0, 1000],
+          [Buffer.from("<literal>.txt").toString("base64"), false, 12, 1000],
+        ] } as Response;
+      };
+    },
+  });
+  dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+  await tick();
+  const { document, KeyboardEvent } = dom.window;
+  assert.deepEqual(requests, ["/work tree"]);
+  assert.match(document.querySelector("#entries")!.textContent!, /<literal>.txt/);
+  assert.equal(document.querySelectorAll("#entries literal").length, 0);
+  (document.querySelector("#open") as HTMLButtonElement).click();
+  const folder = document.querySelector<HTMLInputElement>('input[aria-label="Folder path"]')!;
+  assert.equal(folder.hidden, false);
+  assert.equal(folder.value, "/work tree");
+  folder.value = "/empty";
+  folder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  await tick();
+  assert.equal(folder.hidden, true);
+  assert.equal(document.querySelectorAll("#entries tr").length, 0);
+  assert.match(document.querySelector("#path")!.textContent!, /empty/);
+  folder.value = "/denied";
+  folder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+  await tick();
+  assert.match(document.querySelector("#notice")!.textContent!, /Permission denied/);
+  assert.match(document.querySelector("#path")!.textContent!, /empty/);
+  dom.window.close();
+});

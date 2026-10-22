@@ -16,6 +16,14 @@ const dialog = element<HTMLDialogElement>("preview");
 const previewText = element<HTMLElement>("preview-text");
 const previewNote = element<HTMLElement>("preview-note");
 const download = element<HTMLAnchorElement>("download");
+const native = location.protocol === "worminal:";
+let nativeEntries: Entry<File>[] = [];
+let navigationGeneration = 0;
+const folder = document.createElement("input");
+folder.setAttribute("aria-label", "Folder path");
+folder.placeholder = "Absolute folder path";
+folder.hidden = true;
+element("open").after(folder);
 let tree: FileTree<File> | undefined;
 let current = "";
 let previewUrl: string | undefined;
@@ -30,39 +38,45 @@ function button(label: string, action: () => void): HTMLButtonElement {
 }
 
 function navigate(destination: string): void {
+  if (native) { void openNative(destination); return; }
   current = destination;
   filter.value = "";
   render();
 }
 
 function render(): void {
-  if (!tree) return;
-  path.replaceChildren(button(tree.rootName, () => navigate("")));
+  if (!native && !tree) return;
+  path.replaceChildren(button(native ? "/" : tree!.rootName, () => navigate(native ? "/" : "")));
   let prefix = "";
   for (const part of current.split("/").filter(Boolean)) {
-    prefix = prefix ? `${prefix}/${part}` : part;
+    prefix = prefix || native ? `${prefix}/${part}` : part;
     const destination = prefix;
     path.append("/", button(part, () => navigate(destination)));
   }
-  const visible = tree.list(current, filter.value);
+  const visible = native
+    ? nativeEntries.filter(entry => entry.name.toLocaleLowerCase().includes(filter.value.toLocaleLowerCase()))
+    : tree!.list(current, filter.value);
   const fragment = document.createDocumentFragment();
   for (const entry of visible) {
     const row = document.createElement("tr");
     const name = document.createElement("td");
     name.append(button(entry.name + (entry.directory ? "/" : ""), () => {
       if (entry.directory) navigate(entry.path);
+      else if (native) void previewNative(entry);
       else void preview(entry);
     }));
     const size = document.createElement("td");
-    size.textContent = entry.file ? `${entry.file.size.toLocaleString()} B` : "—";
+    size.textContent = !entry.directory && entry.file ? `${entry.file.size.toLocaleString()} B` : "—";
     const modified = document.createElement("td");
     modified.textContent = entry.file ? new Date(entry.file.lastModified).toLocaleString() : "—";
     row.append(name, size, modified);
     fragment.append(row);
   }
   entries.replaceChildren(fragment);
-  notice.textContent = visible.length ? "" : "No matching files. Empty folders are not exposed by the folder picker.";
-  element("summary").textContent = `${visible.length} entries · ${tree.count} files in folder · read only`;
+  notice.textContent = visible.length ? "" : native ? "No matching files."
+    : "No matching files. Empty folders are not exposed by the folder picker.";
+  element("summary").textContent = native ? `${visible.length} entries · read only`
+    : `${visible.length} entries · ${tree!.count} files in folder · read only`;
 }
 
 async function preview(entry: Entry<File>): Promise<void> {
@@ -99,7 +113,17 @@ dialog.addEventListener("close", () => {
   download.removeAttribute("href");
   previewText.textContent = "";
 });
-element("open").addEventListener("click", () => picker.click());
+element("open").addEventListener("click", () => {
+  if (!native) { picker.click(); return; }
+  folder.hidden = false;
+  folder.value = current;
+  folder.focus();
+  folder.select();
+});
+folder.addEventListener("keydown", event => {
+  if (event.key === "Enter") void openNative(folder.value);
+  if (event.key === "Escape") folder.hidden = true;
+});
 filter.addEventListener("input", render);
 picker.addEventListener("change", () => {
   if (!picker.files?.length) return;
@@ -115,3 +139,53 @@ picker.addEventListener("change", () => {
     picker.value = "";
   }
 });
+
+function nativeUrl(route: string, destination: string): string {
+  return `worminal:///${route}?path=${encodeURIComponent(destination)}`;
+}
+
+async function openNative(destination: string): Promise<void> {
+  const generation = ++navigationGeneration;
+  try {
+    if (!destination.startsWith("/")) throw new Error("Enter an absolute folder path.");
+    const parts: string[] = [];
+    for (const part of destination.split("/")) {
+      if (part === "..") parts.pop();
+      else if (part && part !== ".") parts.push(part);
+    }
+    destination = `/${parts.join("/")}`;
+    const response = await fetch(nativeUrl("list", destination));
+    if (!response.ok) throw new Error("Could not read folder.");
+    const rows: [string, boolean, number, number][] = await response.json();
+    if (generation !== navigationGeneration) return;
+    nativeEntries = rows.map(([encoded, directory, size, modified]) => {
+      const name = new TextDecoder().decode(Uint8Array.from(atob(encoded), c => c.charCodeAt(0)));
+      const file = new File([], name, { lastModified: modified });
+      Object.defineProperty(file, "size", { value: size });
+      return { name, directory, path: `${destination.replace(/\/$/, "")}/${name}`, file };
+    }).sort((a, b) => Number(b.directory) - Number(a.directory) || a.name.localeCompare(b.name));
+    current = destination;
+    folder.hidden = true;
+    filter.disabled = false;
+    filter.value = "";
+    render();
+  } catch (error) {
+    if (generation === navigationGeneration)
+      notice.textContent = error instanceof Error ? error.message : "Could not read folder.";
+  }
+}
+
+async function previewNative(entry: Entry<File>): Promise<void> {
+  try {
+    const response = await fetch(nativeUrl("read", entry.path));
+    if (!response.ok) throw new Error("Could not read file.");
+    const file = new File([await response.blob()], entry.name);
+    await preview({ ...entry, file });
+    download.hidden = true;
+    if (entry.file!.size > file.size) previewNote.textContent = "Preview limited to the first 1 MiB.";
+  } catch {
+    notice.textContent = "Could not read file.";
+  }
+}
+
+if (native) void openNative(new URLSearchParams(location.search).get("path") || "/");
