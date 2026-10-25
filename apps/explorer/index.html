@@ -2,33 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Files — Worminal</title>
 </head>
 <body>
-  <header>
-    <strong>Files</strong>
-    <button id="open" type="button">Open folder…</button>
-    <input id="picker" type="file" webkitdirectory multiple hidden>
-    <label>Filter <input id="filter" type="search" placeholder="Filename" disabled></label>
-  </header>
-  <nav id="path" aria-label="Folder path">No folder selected</nav>
-  <main>
-    <p id="notice" role="status">Open a folder to browse its files. Nothing is uploaded or modified.</p>
-    <table aria-label="Files">
-      <thead><tr><th scope="col">Name</th><th scope="col">Size</th><th scope="col">Modified</th></tr></thead>
-      <tbody id="entries"></tbody>
-    </table>
-  </main>
-  <footer id="summary">Local files · read only</footer>
-  <dialog id="preview" aria-labelledby="preview-name">
-    <form method="dialog"><button aria-label="Close preview">Close</button></form>
-    <h2 id="preview-name"></h2>
-    <p id="preview-note"></p>
-    <a id="download">Download file</a>
-    <pre id="preview-text"></pre>
-  </dialog>
+  <input id="picker" type="file" webkitdirectory multiple hidden>
+  <button id="open" type="button" hidden>Open folder…</button>
+  <main id="entries"></main>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

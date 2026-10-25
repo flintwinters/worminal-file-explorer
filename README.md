@@ -1,7 +1,8 @@
 # Worminal file explorer
 
-A TypeScript npm workspace producing one offline, dark, deliberately plain HTML file.
-No framework, server, CDN, fonts, or runtime dependencies.
+The submodule owns Worminal's plain dark directory page, error-page template, and palette.
+The embedded page reproduces the original native listing: file/folder links in host enumeration
+order, with ordinary browser navigation. Filenames are text, never HTML.
 
 ```sh
 npm ci
@@ -9,23 +10,20 @@ python3 manage.py check
 python3 manage.py build
 ```
 
-Open `dist/index.html` in a browser and choose a folder. Browse directories, filter the current
-directory, preview UTF-8 text, and download files. Files stay local and are never modified.
-The folder picker requires browser support for `webkitdirectory` and omits empty folders.
-Standalone pages cannot read arbitrary filesystem paths. Inside Worminal, the page opens the calling
-shell directory through host-owned read-only endpoints, including empty folders. Text previews read
-at most 1 MiB; Open folder accepts an absolute path in this embedded mode.
+`dist/index.html` is one offline page. Inside Worminal it uses the host's read-only directory
+metadata endpoint; file links use the browser's normal file handling. Outside Worminal an
+Open folder picker grants read access and omits empty folders. No files are uploaded or modified.
+`dist/error.html` is the host error template; its declared message slot accepts escaped text only.
+`dist/theme.json` exports the native initial background and message-slot contract.
+`apps/explorer/src/palette.css` is the single source of colors for all three outputs.
 
-`apps/explorer` owns the DOM interface. `packages/files` owns path validation and directory indexing.
-Vite with `vite-plugin-singlefile` bundles TypeScript and embeds the script and CSS in `dist/index.html`.
+`apps/explorer` owns the DOM interface and templates; `packages/files` owns standalone path validation
+and indexing. Native builds embed the outputs without authoring HTML or CSS in C.
 
-Hyperlinter is pinned as the `tools/hyperlint` submodule. Initialize and run it from this repository:
+Hyperlinter is pinned at `tools/hyperlint`. Initialize submodules and install its dependencies before linting:
 
 ```sh
 git submodule update --init --recursive
 npm --prefix tools/hyperlint ci --include=dev
 python3 manage.py lint
 ```
-
-Lint reports architecture and style policy separately from build/type/behavior checks. It records
-local evidence and checks upstream for updates; it does not automatically fix or baseline findings.

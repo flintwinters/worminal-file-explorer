@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "node tools/build.mjs",
     "lint": "node --import ./tools/hyperlint/node_modules/tsx/dist/loader.mjs tools/hyperlint/src/cli.ts --format=text",
-    "check": "tsc --noEmit && vite build && node tools/check.mjs"
+    "check": "tsc --noEmit && npm run build && node tools/check.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12",

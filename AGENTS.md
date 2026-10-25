@@ -1,13 +1,14 @@
 # File explorer
 
-Keep the explorer plain, dark, small, and local. The distributable is one offline HTML file,
-with no runtime services or external assets. Use native HTML controls and text-safe DOM operations.
+Keep the explorer plain, dark, small, and local. Match the original native directory listing:
+file/folder links in enumeration order, normal browser navigation, and no additional embedded UI.
+Use native HTML controls and text-safe DOM operations; never interpret filenames as markup.
 
-This npm workspace has a DOM app in apps/explorer and an authoritative file tree in packages/files.
-The folder picker grants read access only; it omits empty directories. The Worminal host supplies read-only directory and bounded file-preview endpoints for embedded views;
-standalone browsers retain the folder picker. Never render file contents as HTML.
+This npm workspace owns the directory page, error template, and shared palette. Its build exports
+self-contained HTML and the native background/message-slot contract. Error messages belong only
+in the template's text-content slot. Worminal supplies read-only directory metadata and normal file
+streams, not HTML or styling. Standalone use retains a folder picker and the shared FileTree index.
 
 Use python3 manage.py build or check after npm ci. Keep build outputs and dependencies untracked.
 Hyperlinter is pinned in tools/hyperlint; run python3 manage.py lint after installing its locked
-dependencies. Preserve reported policy; do not write baselines merely to make existing findings pass.
-The same offline artifact serves standalone folder picking and native Worminal directory browsing.
+dependencies. Preserve reported policy; do not write baselines merely to make findings pass.

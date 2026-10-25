@@ -32,92 +32,69 @@ test("ingestion rejects traversal, mixed roots, duplicate files and file-directo
   }
 });
 
-test("single HTML works offline: navigation, filtering, literal names and bounded safe previews", async () => {
+test("standalone page uses plain links and a read-only folder picker", async () => {
   const html = await readFile("dist/index.html", "utf8");
-  assert.deepEqual(await readdir("dist"), ["index.html"]);
-  const dom = new JSDOM(html, {
-    runScripts: "outside-only", url: "file:///explorer/index.html",
+  const dom = new JSDOM(html, { runScripts: "outside-only", url: "file:///explorer/index.html",
     beforeParse(window) {
-      window.TextDecoder = TextDecoder;
-      window.URL.createObjectURL = () => "blob:local-file";
+      window.URL.createObjectURL = file => `blob:local-${(file as File).name}`;
       window.URL.revokeObjectURL = () => {};
-      window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
     },
   });
-  // jsdom has no module loader; evaluate the bundled module after the DOM is parsed.
   dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
-  const { document, Event } = dom.window;
+  const { document, Event, MouseEvent } = dom.window;
   const picker = document.querySelector<HTMLInputElement>("#picker")!;
-  const query = document.querySelector<HTMLInputElement>("#filter")!;
-  assert.equal(document.querySelectorAll("script[src], link[href], img[src], iframe").length, 0);
-  const unsafeName = "<img onerror=alert(1)>.txt";
-  const files = [file(`root/${unsafeName}`, "<script>alert('no')</script>"), file("root/sub/a.txt")];
-  Object.defineProperty(picker, "files", { configurable: true, value: files });
+  assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, false);
+  const name = "<img onerror=alert(1)>.txt";
+  Object.defineProperty(picker, "files", { value: [file(`root/${name}`), file("root/sub/a.txt")] });
   picker.dispatchEvent(new Event("change"));
-  assert.equal(query.disabled, false);
-  assert.equal(document.querySelectorAll("#entries tr").length, 2);
-  assert.equal(document.querySelectorAll("#entries img").length, 0);
-  (document.querySelector("#entries button") as HTMLButtonElement).click();
-  assert.match(document.querySelector("#path")!.textContent!, /sub/);
-  assert.match(document.querySelector("#entries")!.textContent!, /a.txt/);
-  (document.querySelector("#path button") as HTMLButtonElement).click();
-  query.value = "onerror";
-  query.dispatchEvent(new Event("input"));
-  assert.equal(document.querySelectorAll("#entries tr").length, 1);
-  (document.querySelector("#entries button") as HTMLButtonElement).click();
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(document.querySelector("#preview-text")!.textContent, "<script>alert('no')</script>");
-  assert.equal(document.querySelectorAll("#preview-text script").length, 0);
-  assert.equal(document.querySelector("#download")!.getAttribute("download"), unsafeName);
-
-  const big = file("next/large.txt", "a".repeat(1_048_577));
-  Object.defineProperty(picker, "files", { configurable: true, value: [big] });
-  picker.dispatchEvent(new Event("change"));
-  (document.querySelector("#entries button") as HTMLButtonElement).click();
-  await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(document.querySelector("#preview-text")!.textContent!.length, 1_048_576);
-  assert.match(document.querySelector("#preview-note")!.textContent!, /limited/);
+  assert.equal(document.links.length, 2);
+  assert.equal(document.links[1]!.textContent, name);
+  assert.equal(document.querySelectorAll("#entries img, table, dialog, script[src], link[href]").length, 0);
+  document.links[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  assert.equal(document.links.length, 1);
+  assert.equal(document.links[0]!.textContent, "a.txt");
+  assert.equal(document.links[0]!.href, "blob:local-a.txt");
   dom.window.close();
 });
 
-test("embedded explorer starts at the supplied path and opens folders in page", async () => {
+test("embedded page reproduces native links in enumeration order with literal encoded names", async () => {
   const html = await readFile("dist/index.html", "utf8");
-  const requests: string[] = [];
-  const dom = new JSDOM(html, { runScripts: "outside-only", url: "worminal:///files?path=/work%20tree",
-    beforeParse(window) {
-      window.TextDecoder = TextDecoder;
-      window.fetch = async (input: string) => {
-        const destination = new URL(input).searchParams.get("path")!;
-        requests.push(destination);
-        if (destination === "/denied") throw new window.Error("Permission denied");
-        return { ok: true, json: async () => destination === "/empty" ? [] : [
-          [Buffer.from("empty").toString("base64"), true, 0, 1000],
-          [Buffer.from("<literal>.txt").toString("base64"), false, 12, 1000],
-        ] } as Response;
-      };
-    },
-  });
-  dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
-  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-  await tick();
-  const { document, KeyboardEvent } = dom.window;
-  assert.deepEqual(requests, ["/work tree"]);
-  assert.match(document.querySelector("#entries")!.textContent!, /<literal>.txt/);
-  assert.equal(document.querySelectorAll("#entries literal").length, 0);
-  (document.querySelector("#open") as HTMLButtonElement).click();
-  const folder = document.querySelector<HTMLInputElement>('input[aria-label="Folder path"]')!;
-  assert.equal(folder.hidden, false);
-  assert.equal(folder.value, "/work tree");
-  folder.value = "/empty";
-  folder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-  await tick();
-  assert.equal(folder.hidden, true);
-  assert.equal(document.querySelectorAll("#entries tr").length, 0);
-  assert.match(document.querySelector("#path")!.textContent!, /empty/);
-  folder.value = "/denied";
-  folder.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-  await tick();
-  assert.match(document.querySelector("#notice")!.textContent!, /Permission denied/);
-  assert.match(document.querySelector("#path")!.textContent!, /empty/);
+  for (const url of ["worminal:///work%20tree", "worminal:///files?path=%2Fwork%20tree"]) {
+    const requests: string[] = [];
+    const dom = new JSDOM(html, { runScripts: "outside-only", url,
+      beforeParse(window) {
+        window.TextDecoder = TextDecoder;
+        window.fetch = async (input: string) => {
+          requests.push(new URL(input).searchParams.get("path")!);
+          return { ok: true, json: async () => [
+            [Buffer.from("literal <#?% ü>.txt").toString("base64"), false],
+            [Buffer.from("empty").toString("base64"), true],
+          ] } as Response;
+        };
+      },
+    });
+    dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const { document } = dom.window;
+    assert.deepEqual(requests, ["/work tree"]);
+    assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
+    assert.deepEqual(Array.from(document.links, link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
+    assert.equal(document.links[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
+    assert.equal(document.links[1]!.href, "worminal:///work%20tree/empty");
+    assert.equal(document.querySelectorAll("#entries br").length, 2);
+    assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
+    dom.window.close();
+  }
+});
+
+test("error template and native initial background use the page palette", async () => {
+  assert.deepEqual((await readdir("dist")).sort(), ["error.html", "index.html", "theme.json"]);
+  const error = await readFile("dist/error.html", "utf8");
+  const theme = JSON.parse(await readFile("dist/theme.json", "utf8"));
+  assert.equal(error.split(theme.message_slot).length, 2);
+  assert.ok(error.includes(`--browser-background: ${theme.background};`));
+  assert.equal(error.includes("{{style}}"), false);
+  const dom = new JSDOM(error);
+  assert.equal(dom.window.document.querySelectorAll("script, link, iframe").length, 0);
   dom.window.close();
 });
