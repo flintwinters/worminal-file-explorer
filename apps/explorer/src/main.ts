@@ -11,13 +11,14 @@ function element<T extends HTMLElement>(id: string): T {
 const entries = element<HTMLElement>("entries");
 const picker = element<HTMLInputElement>("picker");
 const open = element<HTMLButtonElement>("open");
-const controls = [...element("sort").querySelectorAll<HTMLButtonElement>("button")]
-  .map(button => ({ button, label: button.textContent!, order: button.dataset.sort as SortOrder }));
+const controls = [...element("sort").querySelectorAll<HTMLAnchorElement>("a")]
+  .map(link => ({ link, label: link.textContent!, order: link.dataset.sort as SortOrder }));
 const query = new URLSearchParams(location.search);
 let order = controls.find(control => control.order === query.get("sort"))?.order || "name";
 const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "size";
 let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
 let current: Entry<File>[] = [];
+const path = element("path");
 const native = location.protocol === "worminal:";
 let tree: FileTree<File> | undefined;
 let urls: string[] = [];
@@ -26,8 +27,8 @@ function render(list: Entry<File>[]): void {
   current = list;
   for (const control of controls) {
     const active = control.order === order;
-    control.button.setAttribute("aria-pressed", String(active));
-    control.button.textContent = control.label + (active && order !== "none" ? descending ? " ↓" : " ↑" : "");
+    control.link.setAttribute("aria-current", String(active));
+    control.link.textContent = control.label + (active && order !== "none" ? descending ? " ↓" : " ↑" : "");
   }
   for (const url of urls) URL.revokeObjectURL(url);
   urls = [];
@@ -44,6 +45,7 @@ function render(list: Entry<File>[]): void {
       link.href = `#${encodeURIComponent(entry.path)}`;
       link.addEventListener("click", event => {
         event.preventDefault();
+        path.textContent = `${tree!.rootName}/${entry.path}`;
         render(tree!.list(entry.path, "", "none"));
       });
     } else {
@@ -57,6 +59,7 @@ function render(list: Entry<File>[]): void {
 }
 
 async function directory(destination: string): Promise<void> {
+  path.textContent = destination;
   try {
     const response = await fetch(`worminal:///list?path=${encodeURIComponent(destination)}`);
     if (!response.ok) throw new Error("Could not read folder.");
@@ -70,7 +73,8 @@ async function directory(destination: string): Promise<void> {
   }
 }
 
-for (const control of controls) control.button.addEventListener("click", () => {
+for (const control of controls) control.link.addEventListener("click", event => {
+  event.preventDefault();
   descending = control.order === order ? !descending : defaultDescending(control.order);
   order = control.order;
   if (order === "none") descending = false;
@@ -83,6 +87,7 @@ picker.addEventListener("change", () => {
   if (!picker.files?.length) return;
   try {
     tree = new FileTree(picker.files);
+    path.textContent = tree.rootName;
     render(tree.list("", "", "none"));
   } catch (error) {
     entries.textContent = error instanceof Error ? error.message : "Could not open folder.";

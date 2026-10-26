@@ -21,8 +21,11 @@ Open folder picker grants read access and omits empty folders. No files are uplo
 `apps/explorer/src/palette.css` supplies the base colors for all three outputs.
 The build compiles its LS_COLORS environment into directory and filename-suffix color rules, supporting
 ANSI, 256-color, and RGB foreground/background values. Underline, blink, and conceal are omitted.
-Colors use the xterm palette. Executable, symlink, and permission colors require metadata the host
-currently does not supply; names are never used to guess those attributes.
+Sorting uses plain text links with reversible direction arrows, followed by the current directory path.
+ANSI colors use Worminal’s built-in palette in `packages/files/src/palette.json`, also consumed by the
+native theme compiler. Missing LS_COLORS rules use its blue for directories and foreground for files;
+explicit resets remain plain. Indexed colors above 15 retain the standard 256-color cube and gray ramp.
+Executable, symlink, and permission colors require metadata the host currently does not supply; names are never used to guess those attributes.
 Set LS_COLORS when explicitly building the submodule. Those colors stay baked into that artifact
 until you explicitly build it again.
 

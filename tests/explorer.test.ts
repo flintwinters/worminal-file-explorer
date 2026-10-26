@@ -48,13 +48,14 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   const name = "<img onerror=alert(1)>.txt";
   Object.defineProperty(picker, "files", { value: [file(`root/${name}`), file("root/sub/a.txt")] });
   picker.dispatchEvent(new Event("change"));
-  assert.equal(document.links.length, 2);
-  assert.equal(document.links[1]!.textContent, name);
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a").length, 2);
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[1]!.textContent, name);
   assert.equal(document.querySelectorAll("#entries img, table, dialog, script[src], link[href]").length, 0);
-  document.links[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-  assert.equal(document.links.length, 1);
-  assert.equal(document.links[0]!.textContent, "a.txt");
-  assert.equal(document.links[0]!.href, "blob:local-a.txt");
+  document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  assert.equal(document.querySelector("#path")!.textContent, "root/sub");
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a").length, 1);
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.textContent, "a.txt");
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "blob:local-a.txt");
   dom.window.close();
 });
 
@@ -78,24 +79,27 @@ test("embedded sorting retains original order on request and keeps literal links
     await new Promise(resolve => setTimeout(resolve, 0));
     const { document } = dom.window;
     assert.deepEqual(requests, ["/work tree"]);
+    assert.equal(document.querySelector("#path")!.textContent, "/work tree");
+    assert.equal(document.querySelectorAll("#sort button").length, 0);
+    assert.equal(document.querySelectorAll("#sort a").length, 5);
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
-    assert.deepEqual(Array.from(document.links, link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
-    assert.equal(dom.window.getComputedStyle(document.links[0]!).textDecoration, "none");
+    assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries a"), link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
+    assert.equal(dom.window.getComputedStyle(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!).textDecoration, "none");
     assert.equal(document.querySelectorAll("select").length, 0);
-    const click = (key: string) => document.querySelector<HTMLButtonElement>(`[data-sort="${key}"]`)!.click();
+    const click = (key: string) => document.querySelector<HTMLAnchorElement>(`[data-sort="${key}"]`)!.click();
     click("modified");
     assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↓");
     click("modified");
     assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↑");
     click("extension");
-    const folder = new URL(document.links[0]!.href);
+    const folder = new URL(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href);
     assert.equal(folder.searchParams.get("path"), "/work tree/empty");
     assert.equal(folder.searchParams.get("sort"), "extension");
     assert.equal(folder.searchParams.get("desc"), "0");
     click("none");
-    assert.deepEqual(Array.from(document.links, link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
-    assert.equal(document.links[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
-    assert.equal(new URL(document.links[1]!.href).searchParams.get("path"), "/work tree/empty");
+    assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries a"), link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
+    assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
+    assert.equal(new URL(document.querySelectorAll<HTMLAnchorElement>("#entries a")[1]!.href).searchParams.get("path"), "/work tree/empty");
     assert.equal(document.querySelectorAll("#entries br").length, 2);
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
@@ -116,23 +120,23 @@ test("error template and native initial background use the page palette", async 
 
 test("LS_COLORS compiles validated ANSI, indexed, and RGB rules without underlines", () => {
   const colors = compileLSColors("di=01;04;34:fi=0:*.zip=38;5;196:*.txt=38;2;12;34;56;48;5;232");
-  assert.equal(entryColor(colors, "folder.txt", true), "color:#0000ee;font-weight:bold");
+  assert.equal(entryColor(colors, "folder.txt", true), "color:#6a9fb5;font-weight:bold");
   assert.equal(entryColor(colors, "FILE.ZIP", false), "color:rgb(255,0,0)");
   assert.equal(entryColor(colors, "note.txt", false), "color:rgb(12,34,56);background-color:rgb(8,8,8)");
   assert.equal(entryColor(colors, "plain", false), "");
-  assert.equal(entryColor(compileLSColors("di=31;0;32"), "dir", true), "color:#00cd00");
+  assert.equal(entryColor(compileLSColors("di=31;0;32"), "dir", true), "color:#90a959");
   for (const value of ["38;5;256", "38;2;1;2", "red;background:url(unsafe)"]) {
     assert.equal(entryColor(compileLSColors(`di=${value}`), "dir", true), "");
   }
 });
 
 test("LS_COLORS suffix precedence, case distinctions, and escaped separators match names literally", () => {
-  assert.equal(entryColor(compileLSColors("*.tar.gz=31:*.gz=32"), "archive.tar.gz", false), "color:#00cd00");
+  assert.equal(entryColor(compileLSColors("*.tar.gz=31:*.gz=32"), "archive.tar.gz", false), "color:#90a959");
   const colors = compileLSColors("*.C=31:*.c=32:*.c=33:*.a\\:b=35:*.a\\=b=36");
-  assert.equal(entryColor(colors, "source.C", false), "color:#cd0000");
-  assert.equal(entryColor(colors, "source.c", false), "color:#cdcd00");
-  assert.equal(entryColor(colors, "file.a:b", false), "color:#cd00cd");
-  assert.equal(entryColor(colors, "file.a=b", false), "color:#00cdcd");
+  assert.equal(entryColor(colors, "source.C", false), "color:#ac4242");
+  assert.equal(entryColor(colors, "source.c", false), "color:#f4bf75");
+  assert.equal(entryColor(colors, "file.a:b", false), "color:#aa759f");
+  assert.equal(entryColor(colors, "file.a=b", false), "color:#75b5aa");
 });
 
 test("sorting is natural, reversible, folders-first, and does not mutate enumeration order", () => {
@@ -171,4 +175,12 @@ test("time and size sorting use real metadata, reverse both ways, and leave unkn
   }
   const picker = new FileTree([file("root/small", "x"), file("root/large", "long")]);
   assert.deepEqual(picker.list("", "", "size", true).map(entry => entry.name), ["large", "small"]);
+});
+
+test("missing LS_COLORS rules use Worminal defaults while explicit resets remain plain", () => {
+  assert.equal(entryColor(compileLSColors(""), "folder", true), "color:#6a9fb5");
+  assert.equal(entryColor(compileLSColors("*.txt=31"), "folder.txt", true), "color:#6a9fb5");
+  assert.equal(entryColor(compileLSColors("di=0"), "folder", true), "");
+  assert.equal(entryColor(compileLSColors("no=33"), "folder", true), "color:#f4bf75");
+  assert.equal(entryColor(compileLSColors(""), "plain", false), "color:#d8d8d8");
 });

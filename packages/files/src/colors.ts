@@ -1,11 +1,12 @@
+import palette from "./palette.json";
+
 export interface FileColors {
   directory: string;
   file: string;
   suffixes: { suffix: string; exact: boolean; style: string }[];
 }
 
-const basic = ["#000000", "#cd0000", "#00cd00", "#cdcd00", "#0000ee", "#cd00cd", "#00cdcd", "#e5e5e5",
-               "#7f7f7f", "#ff0000", "#00ff00", "#ffff00", "#5c5cff", "#ff00ff", "#00ffff", "#ffffff"];
+const basic = [...Object.values(palette.normal), ...Object.values(palette.bright)];
 
 function indexed(index: number): string {
   if (index < 16) return basic[index]!;
@@ -88,7 +89,8 @@ export function compileLSColors(value: string): FileColors {
     if (!groups.has(folded)) groups.set(folded, new Set());
     groups.get(folded)!.add(sequence);
   }
-  return { directory: types.get("di") ?? types.get("no") ?? "", file: types.get("fi") ?? types.get("no") ?? "",
+  return { directory: types.get("di") ?? types.get("no") ?? `color:${palette.normal.blue}`,
+           file: types.get("fi") ?? types.get("no") ?? `color:${palette.primary.foreground}`,
            suffixes: [...suffixes].reverse().map(([suffix, { style }]) => ({
              suffix: groups.get(fold(suffix))!.size > 1 ? suffix : fold(suffix),
              style, exact: groups.get(fold(suffix))!.size > 1,

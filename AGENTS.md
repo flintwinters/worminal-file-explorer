@@ -1,8 +1,9 @@
 # File explorer
 
 Keep the explorer plain, dark, small, and local. Match the original native directory listing:
-file/folder links, normal browser navigation, and one-click sort buttons. Avoid decorative styling.
-Links are never underlined. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
+file/folder links, normal browser navigation, and plain text sorting links followed by the current path. Avoid decorative styling.
+Links are never underlined. Compile LS_COLORS into the artifact; browser code only matches the baked rules. The shared palette.json owns Worminal built-in ANSI colors
+and directory fallbacks; explicit LS_COLORS rules take precedence.
 Use native HTML controls and text-safe DOM operations; never interpret filenames as markup.
 
 This npm workspace owns the directory page, error template, and shared palette. Its build exports

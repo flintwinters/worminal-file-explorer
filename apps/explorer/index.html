@@ -9,12 +9,13 @@
   <input id="picker" type="file" webkitdirectory multiple hidden>
   <button id="open" type="button" hidden>Open folder…</button>
   <nav id="sort" aria-label="Sort">
-    <button type="button" data-sort="name">Name</button>
-    <button type="button" data-sort="extension">Extension</button>
-    <button type="button" data-sort="modified">Modified</button>
-    <button type="button" data-sort="size">Size</button>
-    <button type="button" data-sort="none">Original</button>
+    <a href="#" data-sort="name">Name</a>
+    <a href="#" data-sort="extension">Extension</a>
+    <a href="#" data-sort="modified">Modified</a>
+    <a href="#" data-sort="size">Size</a>
+    <a href="#" data-sort="none">Original</a>
   </nav>
+  <div id="path"></div>
   <main id="entries"></main>
   <script type="module" src="/src/main.ts"></script>
 </body>
