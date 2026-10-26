@@ -19,3 +19,5 @@ Do not infer those attributes from names. Standalone browsers retain a folder pi
 Use python3 manage.py build or check after npm ci. Keep build outputs and dependencies untracked.
 Hyperlinter is pinned in tools/hyperlint; run python3 manage.py lint after installing its locked
 dependencies. Preserve reported policy; do not write baselines merely to make findings pass.
+
+WORMINAL_FONT_JSON optionally supplies the host font family and point size at build time.

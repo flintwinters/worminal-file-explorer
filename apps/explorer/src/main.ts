@@ -1,4 +1,5 @@
 import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
+declare const __HOST_FONT__: { family: string; size: number } | null;
 declare const __FILE_COLORS__: FileColors;
 declare global {
   interface Window {
@@ -6,6 +7,11 @@ declare global {
   }
 }
 import "./style.css";
+
+if (__HOST_FONT__) {
+  document.documentElement.style.fontFamily = `${JSON.stringify(__HOST_FONT__.family)}, monospace`;
+  document.documentElement.style.fontSize = `${__HOST_FONT__.size}pt`;
+}
 
 function element<T extends HTMLElement>(id: string): T {
   const node = document.getElementById(id);
