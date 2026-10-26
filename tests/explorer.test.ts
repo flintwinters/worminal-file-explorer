@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readdir, readFile } from "node:fs/promises";
 import { JSDOM } from "jsdom";
-import { FileTree } from "../packages/files/src/index";
+import { FileTree, sortEntries } from "../packages/files/src/index";
+import { compileLSColors, entryColor } from "../packages/files/src/colors";
 
 function file(path: string, text = "hello"): File {
   const value = new File([text], path.split("/").at(-1)!, { lastModified: 1000 });
@@ -57,7 +58,7 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   dom.window.close();
 });
 
-test("embedded page reproduces native links in enumeration order with literal encoded names", async () => {
+test("embedded sorting retains original order on request and keeps literal links", async () => {
   const html = await readFile("dist/index.html", "utf8");
   for (const url of ["worminal:///work%20tree", "worminal:///files?path=%2Fwork%20tree"]) {
     const requests: string[] = [];
@@ -78,6 +79,11 @@ test("embedded page reproduces native links in enumeration order with literal en
     const { document } = dom.window;
     assert.deepEqual(requests, ["/work tree"]);
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
+    assert.deepEqual(Array.from(document.links, link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
+    assert.equal(dom.window.getComputedStyle(document.links[0]!).textDecoration, "none");
+    const sort = document.querySelector<HTMLSelectElement>("#sort")!;
+    sort.value = "none";
+    sort.dispatchEvent(new dom.window.Event("change"));
     assert.deepEqual(Array.from(document.links, link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
     assert.equal(document.links[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
     assert.equal(document.links[1]!.href, "worminal:///work%20tree/empty");
@@ -97,4 +103,44 @@ test("error template and native initial background use the page palette", async 
   const dom = new JSDOM(error);
   assert.equal(dom.window.document.querySelectorAll("script, link, iframe").length, 0);
   dom.window.close();
+});
+
+test("LS_COLORS compiles validated ANSI, indexed, and RGB rules without underlines", () => {
+  const colors = compileLSColors("di=01;04;34:fi=0:*.zip=38;5;196:*.txt=38;2;12;34;56;48;5;232");
+  assert.equal(entryColor(colors, "folder.txt", true), "color:#0000ee;font-weight:bold");
+  assert.equal(entryColor(colors, "FILE.ZIP", false), "color:rgb(255,0,0)");
+  assert.equal(entryColor(colors, "note.txt", false), "color:rgb(12,34,56);background-color:rgb(8,8,8)");
+  assert.equal(entryColor(colors, "plain", false), "");
+  assert.equal(entryColor(compileLSColors("di=31;0;32"), "dir", true), "color:#00cd00");
+  for (const value of ["38;5;256", "38;2;1;2", "red;background:url(unsafe)"]) {
+    assert.equal(entryColor(compileLSColors(`di=${value}`), "dir", true), "");
+  }
+});
+
+test("LS_COLORS suffix precedence, case distinctions, and escaped separators match names literally", () => {
+  assert.equal(entryColor(compileLSColors("*.tar.gz=31:*.gz=32"), "archive.tar.gz", false), "color:#00cd00");
+  const colors = compileLSColors("*.C=31:*.c=32:*.c=33:*.a\\:b=35:*.a\\=b=36");
+  assert.equal(entryColor(colors, "source.C", false), "color:#cd0000");
+  assert.equal(entryColor(colors, "source.c", false), "color:#cdcd00");
+  assert.equal(entryColor(colors, "file.a:b", false), "color:#cd00cd");
+  assert.equal(entryColor(colors, "file.a=b", false), "color:#00cdcd");
+});
+
+test("sorting is natural, reversible, folders-first, and does not mutate enumeration order", () => {
+  const entries = [
+    { name: "file10.txt", path: "file10.txt", directory: false },
+    { name: "file2.py", path: "file2.py", directory: false },
+    { name: "folder", path: "folder", directory: true },
+    { name: "file1.txt", path: "file1.txt", directory: false },
+  ];
+  assert.deepEqual(sortEntries(entries).map(entry => entry.name), ["folder", "file1.txt", "file2.py", "file10.txt"]);
+  assert.deepEqual(sortEntries(entries, "name-desc").map(entry => entry.name),
+                   ["folder", "file10.txt", "file2.py", "file1.txt"]);
+  assert.deepEqual(sortEntries(entries, "type").map(entry => entry.name),
+                   ["folder", "file2.py", "file1.txt", "file10.txt"]);
+  assert.deepEqual(sortEntries(entries, "none"), entries);
+  assert.equal(entries[0]!.name, "file10.txt");
+  assert.deepEqual(sortEntries([
+    { name: "b", path: "b", directory: true }, { name: "a.z", path: "a.z", directory: true },
+  ], "type").map(entry => entry.name), ["a.z", "b"]);
 });

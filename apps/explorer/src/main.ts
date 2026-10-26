@@ -1,4 +1,5 @@
-import { FileTree, type Entry } from "@worminal/files";
+import { FileTree, sortEntries, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
+declare const __FILE_COLORS__: FileColors;
 import "./style.css";
 
 function element<T extends HTMLElement>(id: string): T {
@@ -10,24 +11,28 @@ function element<T extends HTMLElement>(id: string): T {
 const entries = element<HTMLElement>("entries");
 const picker = element<HTMLInputElement>("picker");
 const open = element<HTMLButtonElement>("open");
+const sort = element<HTMLSelectElement>("sort");
+let current: Entry<File>[] = [];
 const native = location.protocol === "worminal:";
 let tree: FileTree<File> | undefined;
 let urls: string[] = [];
 
 function render(list: Entry<File>[]): void {
+  current = list;
   for (const url of urls) URL.revokeObjectURL(url);
   urls = [];
   const fragment = document.createDocumentFragment();
-  for (const entry of list) {
+  for (const entry of sortEntries(list, sort.value as SortOrder)) {
     const link = document.createElement("a");
     link.textContent = entry.name;
+    link.style.cssText = entryColor(__FILE_COLORS__, entry.name, entry.directory);
     if (native) {
       link.href = `worminal://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
     } else if (entry.directory) {
       link.href = `#${encodeURIComponent(entry.path)}`;
       link.addEventListener("click", event => {
         event.preventDefault();
-        render(tree!.list(entry.path));
+        render(tree!.list(entry.path, "", "none"));
       });
     } else {
       const url = URL.createObjectURL(entry.file!);
@@ -53,13 +58,14 @@ async function directory(destination: string): Promise<void> {
   }
 }
 
+sort.addEventListener("change", () => render(current));
 open.hidden = native;
 open.addEventListener("click", () => picker.click());
 picker.addEventListener("change", () => {
   if (!picker.files?.length) return;
   try {
     tree = new FileTree(picker.files);
-    render(tree.list());
+    render(tree.list("", "", "none"));
   } catch (error) {
     entries.textContent = error instanceof Error ? error.message : "Could not open folder.";
   } finally {

@@ -1,8 +1,13 @@
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
+import { compileLSColors } from "./packages/files/src/colors";
+
+// The build config needs only this Node API; browser sources have no process dependency.
+declare const process: { env: Record<string, string | undefined> };
 
 export default defineConfig({
   root: "apps/explorer",
+  define: { __FILE_COLORS__: JSON.stringify(compileLSColors(process.env.LS_COLORS || "")) },
   plugins: [viteSingleFile()],
   build: { outDir: "../../dist", emptyOutDir: true },
 });

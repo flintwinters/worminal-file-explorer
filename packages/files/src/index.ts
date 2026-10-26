@@ -1,3 +1,5 @@
+export { entryColor, type FileColors } from "./colors";
+
 export interface SourceFile {
   readonly name: string;
   readonly webkitRelativePath: string;
@@ -10,6 +12,22 @@ export interface Entry<T extends SourceFile> {
   path: string;
   directory: boolean;
   file?: T;
+}
+
+export type SortOrder = "name" | "name-desc" | "type" | "none";
+const names = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+function extension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1) : "";
+}
+
+export function sortEntries<T extends SourceFile>(entries: Entry<T>[], order: SortOrder = "name"): Entry<T>[] {
+  const result = [...entries];
+  if (order === "none") return result;
+  return result.sort((a, b) => Number(b.directory) - Number(a.directory) ||
+    (order === "type" && !a.directory ? names.compare(extension(a.name), extension(b.name)) : 0) ||
+    (order === "name-desc" ? -1 : 1) * (names.compare(a.name, b.name) || a.name.localeCompare(b.name)));
 }
 
 export class FileTree<T extends SourceFile> {
@@ -47,12 +65,11 @@ export class FileTree<T extends SourceFile> {
     }
   }
 
-  list(path = "", query = ""): Entry<T>[] {
+  list(path = "", query = "", order: SortOrder = "name"): Entry<T>[] {
     const children = this.directories.get(path);
     if (!children) throw new Error("Folder does not exist.");
     const needle = query.toLocaleLowerCase();
-    return [...children.values()]
-      .filter(entry => entry.name.toLocaleLowerCase().includes(needle))
-      .sort((a, b) => Number(b.directory) - Number(a.directory) || a.name.localeCompare(b.name));
+    return sortEntries([...children.values()]
+      .filter(entry => entry.name.toLocaleLowerCase().includes(needle)), order);
   }
 }
