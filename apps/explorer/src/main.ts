@@ -28,6 +28,34 @@ const native = Boolean(window.worminal);
 let currentDirectory = "";
 let tree: FileTree<File> | undefined;
 let urls: string[] = [];
+let preview: HTMLImageElement | undefined;
+
+function hidePreview(): void {
+  preview?.remove();
+  preview = undefined;
+}
+
+function imagePreview(link: HTMLAnchorElement, entry: Entry<File>): void {
+  if (entry.directory || !(entry.file?.type.startsWith("image/") ||
+      /\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(entry.name))) return;
+  link.addEventListener("pointerenter", () => {
+    hidePreview();
+    const image = document.createElement("img");
+    image.className = "image-preview";
+    image.alt = entry.name;
+    // Each hover owns its image so a late load/error cannot affect another preview.
+    image.hidden = true;
+    image.addEventListener("load", () => { image.hidden = false; });
+    image.addEventListener("error", () => image.remove());
+    image.src = link.href;
+    preview = image;
+    document.body.append(image);
+  });
+  link.addEventListener("pointerleave", hidePreview);
+}
+
+window.addEventListener("blur", hidePreview);
+document.addEventListener("scroll", hidePreview, true);
 
 function directoryURL(destination: string): string {
   const url = new URL(location.href);
@@ -43,6 +71,7 @@ function showDirectory(destination: string): void {
 }
 
 function render(list: Entry<File>[]): void {
+  hidePreview();
   current = list;
   for (const control of controls) {
     const active = control.order === order;
@@ -71,6 +100,7 @@ function render(list: Entry<File>[]): void {
       urls.push(url);
       link.href = url;
     }
+    imagePreview(link, entry);
     const metadata = entryMetadata(entry);
     const size = document.createElement("span");
     size.className = "size";

@@ -213,3 +213,63 @@ test("metadata columns use compact sizes and local minute timestamps without inv
   assert.deepEqual(entryMetadata({ name: "dir", path: "dir", directory: true }),
                    { size: undefined, modified: undefined });
 });
+
+test("image hover previews load on demand and clear on leave, failure, scroll, and rerender", async () => {
+  const html = await readFile("dist/index.html", "utf8");
+  for (const native of [false, true]) {
+    const names = ["photo <#%>.PNG", "animation.gif", "vector.svg", "note.txt", "folder.png"];
+    const dom = new JSDOM(html, { runScripts: "outside-only", url: "file:///explorer/index.html?path=/pictures",
+      beforeParse(window) {
+        window.TextDecoder = TextDecoder;
+        window.URL.createObjectURL = file => `blob:local-${encodeURIComponent((file as File).name)}`;
+        window.URL.revokeObjectURL = () => {};
+        if (native) (window as unknown as { worminal: object }).worminal = {
+          readDirectory: async () => names.map(name => [Buffer.from(name).toString("base64"), name === "folder.png"]),
+        };
+      },
+    });
+    dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
+    const { document, Event } = dom.window;
+    if (native) await new Promise(resolve => setTimeout(resolve, 0));
+    else {
+      const picker = document.querySelector<HTMLInputElement>("#picker")!;
+      Object.defineProperty(picker, "files", { value: names.map(name => file(`root/${name === "folder.png" ? `${name}/child.txt` : name}`)) });
+      picker.dispatchEvent(new Event("change"));
+    }
+    const links = [...document.querySelectorAll<HTMLAnchorElement>("#entries a")];
+    const link = (name: string) => links.find(value => value.textContent === name)!;
+    const preview = () => document.querySelector<HTMLImageElement>(".image-preview");
+    const hover = (name: string) => link(name).dispatchEvent(new Event("pointerenter"));
+    assert.equal(preview(), null);
+    for (const name of ["note.txt", "folder.png"]) {
+      hover(name);
+      assert.equal(preview(), null);
+    }
+    hover(names[0]!);
+    const first = preview()!;
+    assert.equal(first.src, link(names[0]!).href);
+    assert.equal(first.alt, names[0]);
+    assert.equal(first.hidden, true);
+    first.dispatchEvent(new Event("load"));
+    assert.equal(first.hidden, false);
+    hover("animation.gif");
+    const second = preview()!;
+    first.dispatchEvent(new Event("error"));
+    assert.equal(preview(), second);
+    second.dispatchEvent(new Event("error"));
+    assert.equal(preview(), null);
+    hover("vector.svg");
+    link("vector.svg").dispatchEvent(new Event("pointerleave"));
+    assert.equal(preview(), null);
+    hover("vector.svg");
+    document.dispatchEvent(new Event("scroll"));
+    assert.equal(preview(), null);
+    hover("vector.svg");
+    dom.window.dispatchEvent(new Event("blur"));
+    assert.equal(preview(), null);
+    hover("vector.svg");
+    document.querySelector<HTMLAnchorElement>('[data-sort="size"]')!.click();
+    assert.equal(preview(), null);
+    dom.window.close();
+  }
+});
