@@ -7,7 +7,8 @@ declare const process: { env: Record<string, string | undefined> };
 
 export default defineConfig({
   root: "apps/explorer",
-  define: { __FILE_COLORS__: JSON.stringify(compileLSColors(process.env.LS_COLORS || "")) },
+  define: { __FILE_COLORS__: JSON.stringify(compileLSColors(process.env.LS_COLORS || "",
+    process.env.WORMINAL_PALETTE_JSON ? JSON.parse(process.env.WORMINAL_PALETTE_JSON) : undefined)) },
   plugins: [viteSingleFile()],
   build: { outDir: "../../dist", emptyOutDir: true },
 });

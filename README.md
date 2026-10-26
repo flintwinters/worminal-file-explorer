@@ -1,7 +1,7 @@
 # Worminal file explorer
 
 The submodule owns Worminal's plain dark directory page, error-page template, and palette.
-The embedded page reproduces the original native listing: file/folder links in host enumeration
+The page reproduces the original native listing: file/folder links in host enumeration
 order when Original is selected, with ordinary browser navigation. Plain text links sort by Name,
 Extension, Modified, or Size in one click. Click the active link to reverse it; Modified starts
 newest-first and Size largest-first. Sorted modes keep folders first. Folder navigation retains
@@ -14,26 +14,22 @@ python3 manage.py check
 python3 manage.py build
 ```
 
-`dist/index.html` is one offline page. Inside Worminal it uses the host's read-only directory
-metadata endpoint; file links use the browser's normal file handling. Outside Worminal an
-Open folder picker grants read access and omits empty folders. No files are uploaded or modified.
-`dist/error.html` is the host error template; its declared message slot accepts escaped text only.
-`dist/find.js` supplies isolated-world high-contrast find selection and link focus for the native browser.
-`dist/theme.json` exports the native initial background and message-slot contract.
-`apps/explorer/src/palette.css` supplies the base colors for all three outputs.
-The build compiles its LS_COLORS environment into directory and filename-suffix color rules, supporting
-ANSI, 256-color, and RGB foreground/background values. Underline, blink, and conceal are omitted.
-The current directory path appears above plain text sorting links with reversible direction arrows.
-Alt+Up opens the parent directory while retaining sorting, stopping at the filesystem or folder-picker root.
-ANSI colors use Worminal’s built-in palette in `packages/files/src/palette.json`, also consumed by the
-native theme compiler. Missing LS_COLORS rules use its blue for directories and foreground for files;
-explicit resets remain plain. Indexed colors above 15 retain the standard 256-color cube and gray ramp.
-Executable, symlink, and permission colors require metadata the host currently does not supply; names are never used to guess those attributes.
-Set LS_COLORS when explicitly building the submodule. Those colors stay baked into that artifact
-until you explicitly build it again.
+`dist/index.html` is a single offline HTML application. Open it directly with
+`worminal --new-browser-tab /absolute/path/to/dist/index.html`, or run this workspace's
+`python3 manage.py open` inside a Worminal terminal to open the caller's directory.
+Rebuild and reopen or reload the page to use the latest output; Worminal is not rebuilt or reinstalled.
+Worminal provides `window.worminal.readDirectory(path)` to explicitly selected local HTML documents.
+Other browsers retain a folder picker; no files are uploaded or modified.
 
-`apps/explorer` owns the DOM interface and templates; `packages/files` owns standalone path validation
-and indexing. Native builds embed the outputs without authoring HTML or CSS in C.
+The build compiles LS_COLORS into directory and filename-suffix styles. An optional WORMINAL_PALETTE
+JSON file supplies host ANSI colors; standalone defaults live in packages/files/src/palette.json.
+Missing rules use blue for directories and foreground for files; explicit resets remain plain.
+Indexed colors above 15 retain the standard color cube and gray ramp.
+The current path appears above plain text sorting links. Alt+Up opens the parent directory while
+retaining sorting, stopping at the filesystem or folder-picker root. Names and metadata stay text-safe.
+Executable, symlink and permission colors require unavailable metadata; names never imply those attributes.
+
+`apps/explorer` owns the DOM interface; `packages/files` owns path validation, indexing and metadata formatting.
 
 Hyperlinter is pinned at `tools/hyperlint`. Initialize submodules and install its dependencies before linting:
 

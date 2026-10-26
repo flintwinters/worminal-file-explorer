@@ -73,18 +73,18 @@ test("standalone page uses plain links and a read-only folder picker", async () 
 
 test("embedded sorting retains original order on request and keeps literal links", async () => {
   const html = await readFile("dist/index.html", "utf8");
-  for (const url of ["worminal:///work%20tree", "worminal:///files?path=%2Fwork%20tree"]) {
+  for (const url of ["file:///explorer/index.html?path=%2Fwork%20tree", "file:///explorer/index.html?cwd=%2Fwork%20tree"]) {
     const requests: string[] = [];
     const dom = new JSDOM(html, { runScripts: "outside-only", url,
       beforeParse(window) {
         window.TextDecoder = TextDecoder;
-        window.fetch = async (input: string) => {
-          requests.push(new URL(input).searchParams.get("path")!);
-          return { ok: true, json: async () => [
+        (window as unknown as { worminal: object }).worminal = { readDirectory: async (path: string) => {
+          requests.push(path);
+          return [
             [Buffer.from("literal <#?% ü>.txt").toString("base64"), false, 14, 1000],
             [Buffer.from("empty").toString("base64"), true, 0, 2000],
-          ] } as Response;
-        };
+          ];
+        } };
       },
     });
     dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
@@ -111,7 +111,7 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(folder.searchParams.get("desc"), "0");
     click("none");
     assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries a"), link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
-    assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
+    assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "file:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
     assert.equal(new URL(document.querySelectorAll<HTMLAnchorElement>("#entries a")[1]!.href).searchParams.get("path"), "/work tree/empty");
     assert.equal(document.querySelectorAll("#entries .entry").length, 2);
     const cells = [...document.querySelectorAll("#entries .entry")].map(row =>
@@ -123,16 +123,8 @@ test("embedded sorting retains original order on request and keeps literal links
   }
 });
 
-test("error template and native initial background use the page palette", async () => {
-  assert.deepEqual((await readdir("dist")).sort(), ["error.html", "find.js", "index.html", "theme.json"]);
-  const error = await readFile("dist/error.html", "utf8");
-  const theme = JSON.parse(await readFile("dist/theme.json", "utf8"));
-  assert.equal(error.split(theme.message_slot).length, 2);
-  assert.ok(error.includes(`--browser-background: ${theme.background};`));
-  assert.equal(error.includes("{{style}}"), false);
-  const dom = new JSDOM(error);
-  assert.equal(dom.window.document.querySelectorAll("script, link, iframe").length, 0);
-  dom.window.close();
+test("build exports only the runtime HTML document", async () => {
+  assert.deepEqual(await readdir("dist"), ["index.html"]);
 });
 
 test("LS_COLORS compiles validated ANSI, indexed, and RGB rules without underlines", () => {
@@ -220,24 +212,4 @@ test("metadata columns use compact sizes and local minute timestamps without inv
                    { size: 5, modified: 1000 });
   assert.deepEqual(entryMetadata({ name: "dir", path: "dir", directory: true }),
                    { size: undefined, modified: undefined });
-});
-
-test("native find presentation preserves the selection and focuses its containing link on accept", async () => {
-  const dom = new JSDOM('<a href="/target"><span>match</span></a>', { runScripts: "outside-only" });
-  const script = await readFile("dist/find.js", "utf8");
-  const present = (action: string) => dom.window.eval(script + `\nWorminalFind.update('${action}')`);
-  const { document } = dom.window;
-  const selection = document.getSelection()!;
-  const range = document.createRange();
-  range.selectNodeContents(document.querySelector("span")!);
-  selection.addRange(range);
-  present("show");
-  assert.equal(selection.toString(), "match");
-  assert.ok(document.querySelector("[data-worminal-find]")!.textContent!.includes("#ffdd00"));
-  present("accept");
-  assert.equal(document.activeElement, document.querySelector("a"));
-  assert.equal(selection.toString(), "match");
-  present("clear");
-  assert.equal(document.querySelectorAll("[data-worminal-find]").length, 0);
-  dom.window.close();
 });

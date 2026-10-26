@@ -1,5 +1,10 @@
 import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
 declare const __FILE_COLORS__: FileColors;
+declare global {
+  interface Window {
+    worminal?: { readDirectory(path: string): Promise<[string, boolean, number?, number?][]> };
+  }
+}
 import "./style.css";
 
 function element<T extends HTMLElement>(id: string): T {
@@ -19,13 +24,15 @@ const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "
 let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
 let current: Entry<File>[] = [];
 const path = element("path");
-const native = location.protocol === "worminal:";
+const native = Boolean(window.worminal);
 let currentDirectory = "";
 let tree: FileTree<File> | undefined;
 let urls: string[] = [];
 
 function directoryURL(destination: string): string {
-  return `worminal:///files?${new URLSearchParams({ path: destination, sort: order, desc: descending ? "1" : "0" })}`;
+  const url = new URL(location.href);
+  url.search = new URLSearchParams({ path: destination, sort: order, desc: descending ? "1" : "0" }).toString();
+  return url.href;
 }
 
 function showDirectory(destination: string): void {
@@ -52,7 +59,7 @@ function render(list: Entry<File>[]): void {
     if (native) {
       link.href = entry.directory
         ? directoryURL(entry.path)
-        : `worminal://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
+        : `file://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
     } else if (entry.directory) {
       link.href = `#${encodeURIComponent(entry.path)}`;
       link.addEventListener("click", event => {
@@ -81,9 +88,7 @@ function render(list: Entry<File>[]): void {
 
 async function directory(destination: string): Promise<void> {
   try {
-    const response = await fetch(`worminal:///list?path=${encodeURIComponent(destination)}`);
-    if (!response.ok) throw new Error("Could not read folder.");
-    const rows: [string, boolean, number?, number?][] = await response.json();
+    const rows = await window.worminal!.readDirectory(destination);
     render(rows.map(([encoded, directory, size, modified]) => {
       const name = new TextDecoder().decode(Uint8Array.from(atob(encoded), c => c.charCodeAt(0)));
       return { name, directory, size, modified, path: `${destination.replace(/\/$/, "")}/${name}` };
@@ -125,5 +130,4 @@ document.addEventListener("keydown", event => {
   else showDirectory(parent);
 });
 
-if (native) showDirectory(query.get("path") ||
-                          (location.pathname === "/files" ? "/" : decodeURIComponent(location.pathname)));
+if (native) showDirectory(query.get("path") || query.get("cwd") || "/");
