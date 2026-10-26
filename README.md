@@ -6,7 +6,7 @@ order when Original is selected, with ordinary browser navigation. Plain text li
 Extension, Modified, or Size in one click. Click the active link to reverse it; Modified starts
 newest-first and Size largest-first. Sorted modes keep folders first. Folder navigation retains
 the chosen sort. Listing columns show names, compact binary sizes (14, 1.2K, 3M), and local modification
-times (YY-MM-DD HH:mm); directory sizes and unavailable metadata stay blank. Filenames are text, never HTML; links are never underlined.
+times (YY-MM-DD HH:mm); directory sizes and unavailable metadata stay blank. Filenames are text, never HTML; links reveal underlines on hover.
 
 ```sh
 npm ci

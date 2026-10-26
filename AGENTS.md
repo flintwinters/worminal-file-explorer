@@ -4,7 +4,7 @@ Keep the explorer plain, dark, small, and local. Match the original native direc
 file/folder links, normal browser navigation, and the current path above plain text sorting links.
 Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots. Avoid decorative styling.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
-Links are never underlined. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
+Links reveal underlines on hover. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
 Image links load a bounded hover preview on demand, using the same native or picked-file URL as navigation.
 An optional WORMINAL_PALETTE JSON build input supplies host colors; standalone defaults live in palette.json.
 Explicit LS_COLORS rules take precedence. Use text-safe DOM operations; filenames are never markup.

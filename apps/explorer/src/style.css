@@ -1,6 +1,7 @@
 @import "./palette.css";
 html { background: var(--browser-background); color: var(--browser-foreground); }
 a { color: var(--browser-foreground); text-decoration: none; }
+a[href]:hover { text-decoration: underline; }
 #entries { display: table; border-collapse: collapse; }
 .entry { display: table-row; }
 .entry > * { display: table-cell; }
