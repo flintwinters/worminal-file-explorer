@@ -68,8 +68,8 @@ test("embedded sorting retains original order on request and keeps literal links
         window.fetch = async (input: string) => {
           requests.push(new URL(input).searchParams.get("path")!);
           return { ok: true, json: async () => [
-            [Buffer.from("literal <#?% ü>.txt").toString("base64"), false],
-            [Buffer.from("empty").toString("base64"), true],
+            [Buffer.from("literal <#?% ü>.txt").toString("base64"), false, 14, 1000],
+            [Buffer.from("empty").toString("base64"), true, 0, 2000],
           ] } as Response;
         };
       },
@@ -81,12 +81,21 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
     assert.deepEqual(Array.from(document.links, link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
     assert.equal(dom.window.getComputedStyle(document.links[0]!).textDecoration, "none");
-    const sort = document.querySelector<HTMLSelectElement>("#sort")!;
-    sort.value = "none";
-    sort.dispatchEvent(new dom.window.Event("change"));
+    assert.equal(document.querySelectorAll("select").length, 0);
+    const click = (key: string) => document.querySelector<HTMLButtonElement>(`[data-sort="${key}"]`)!.click();
+    click("modified");
+    assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↓");
+    click("modified");
+    assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↑");
+    click("extension");
+    const folder = new URL(document.links[0]!.href);
+    assert.equal(folder.searchParams.get("path"), "/work tree/empty");
+    assert.equal(folder.searchParams.get("sort"), "extension");
+    assert.equal(folder.searchParams.get("desc"), "0");
+    click("none");
     assert.deepEqual(Array.from(document.links, link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
     assert.equal(document.links[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
-    assert.equal(document.links[1]!.href, "worminal:///work%20tree/empty");
+    assert.equal(new URL(document.links[1]!.href).searchParams.get("path"), "/work tree/empty");
     assert.equal(document.querySelectorAll("#entries br").length, 2);
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
@@ -134,13 +143,32 @@ test("sorting is natural, reversible, folders-first, and does not mutate enumera
     { name: "file1.txt", path: "file1.txt", directory: false },
   ];
   assert.deepEqual(sortEntries(entries).map(entry => entry.name), ["folder", "file1.txt", "file2.py", "file10.txt"]);
-  assert.deepEqual(sortEntries(entries, "name-desc").map(entry => entry.name),
+  assert.deepEqual(sortEntries(entries, "name", true).map(entry => entry.name),
                    ["folder", "file10.txt", "file2.py", "file1.txt"]);
-  assert.deepEqual(sortEntries(entries, "type").map(entry => entry.name),
+  assert.deepEqual(sortEntries(entries, "extension").map(entry => entry.name),
                    ["folder", "file2.py", "file1.txt", "file10.txt"]);
   assert.deepEqual(sortEntries(entries, "none"), entries);
   assert.equal(entries[0]!.name, "file10.txt");
   assert.deepEqual(sortEntries([
     { name: "b", path: "b", directory: true }, { name: "a.z", path: "a.z", directory: true },
-  ], "type").map(entry => entry.name), ["a.z", "b"]);
+  ], "extension").map(entry => entry.name), ["a.z", "b"]);
+});
+
+test("time and size sorting use real metadata, reverse both ways, and leave unknown values last", () => {
+  const entries = [
+    { name: "old", path: "old", directory: false, size: 100, modified: 0 },
+    { name: "new", path: "new", directory: false, size: 0, modified: 2000 },
+    { name: "folder", path: "folder", directory: true },
+    { name: "unknown", path: "unknown", directory: false },
+  ];
+  for (const [order, descending, expected] of [
+    ["modified", true, ["folder", "new", "old", "unknown"]],
+    ["modified", false, ["folder", "old", "new", "unknown"]],
+    ["size", true, ["folder", "old", "new", "unknown"]],
+    ["size", false, ["folder", "new", "old", "unknown"]],
+  ] as const) {
+    assert.deepEqual(sortEntries(entries, order, descending).map(entry => entry.name), expected);
+  }
+  const picker = new FileTree([file("root/small", "x"), file("root/large", "long")]);
+  assert.deepEqual(picker.list("", "", "size", true).map(entry => entry.name), ["large", "small"]);
 });

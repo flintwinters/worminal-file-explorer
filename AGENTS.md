@@ -1,14 +1,14 @@
 # File explorer
 
 Keep the explorer plain, dark, small, and local. Match the original native directory listing:
-file/folder links, normal browser navigation, and one native sorting select. Avoid decorative styling.
+file/folder links, normal browser navigation, and one-click sort buttons. Avoid decorative styling.
 Links are never underlined. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
 Use native HTML controls and text-safe DOM operations; never interpret filenames as markup.
 
 This npm workspace owns the directory page, error template, and shared palette. Its build exports
 self-contained HTML and the native background/message-slot contract. Error messages belong only
 in the template's text-content slot. Worminal supplies read-only directory metadata and normal file
-streams, not HTML or styling. Current metadata distinguishes directories and regular filenames only;
+streams, not HTML or styling. Metadata includes directory status, size, and modified time; executable and symlink status remain unavailable;
 do not infer executable or symlink status from names. Standalone use retains a folder picker and the shared FileTree index.
 
 Use python3 manage.py build or check after npm ci. Keep build outputs and dependencies untracked.

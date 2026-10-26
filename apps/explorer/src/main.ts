@@ -11,7 +11,12 @@ function element<T extends HTMLElement>(id: string): T {
 const entries = element<HTMLElement>("entries");
 const picker = element<HTMLInputElement>("picker");
 const open = element<HTMLButtonElement>("open");
-const sort = element<HTMLSelectElement>("sort");
+const controls = [...element("sort").querySelectorAll<HTMLButtonElement>("button")]
+  .map(button => ({ button, label: button.textContent!, order: button.dataset.sort as SortOrder }));
+const query = new URLSearchParams(location.search);
+let order = controls.find(control => control.order === query.get("sort"))?.order || "name";
+const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "size";
+let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
 let current: Entry<File>[] = [];
 const native = location.protocol === "worminal:";
 let tree: FileTree<File> | undefined;
@@ -19,15 +24,22 @@ let urls: string[] = [];
 
 function render(list: Entry<File>[]): void {
   current = list;
+  for (const control of controls) {
+    const active = control.order === order;
+    control.button.setAttribute("aria-pressed", String(active));
+    control.button.textContent = control.label + (active && order !== "none" ? descending ? " ↓" : " ↑" : "");
+  }
   for (const url of urls) URL.revokeObjectURL(url);
   urls = [];
   const fragment = document.createDocumentFragment();
-  for (const entry of sortEntries(list, sort.value as SortOrder)) {
+  for (const entry of sortEntries(list, order, descending)) {
     const link = document.createElement("a");
     link.textContent = entry.name;
     link.style.cssText = entryColor(__FILE_COLORS__, entry.name, entry.directory);
     if (native) {
-      link.href = `worminal://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
+      link.href = entry.directory
+        ? `worminal:///files?${new URLSearchParams({ path: entry.path, sort: order, desc: descending ? "1" : "0" })}`
+        : `worminal://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
     } else if (entry.directory) {
       link.href = `#${encodeURIComponent(entry.path)}`;
       link.addEventListener("click", event => {
@@ -48,17 +60,23 @@ async function directory(destination: string): Promise<void> {
   try {
     const response = await fetch(`worminal:///list?path=${encodeURIComponent(destination)}`);
     if (!response.ok) throw new Error("Could not read folder.");
-    const rows: [string, boolean][] = await response.json();
-    render(rows.map(([encoded, directory]) => {
+    const rows: [string, boolean, number?, number?][] = await response.json();
+    render(rows.map(([encoded, directory, size, modified]) => {
       const name = new TextDecoder().decode(Uint8Array.from(atob(encoded), c => c.charCodeAt(0)));
-      return { name, directory, path: `${destination.replace(/\/$/, "")}/${name}` };
+      return { name, directory, size, modified, path: `${destination.replace(/\/$/, "")}/${name}` };
     }));
   } catch (error) {
     entries.textContent = error instanceof Error ? error.message : "Could not read folder.";
   }
 }
 
-sort.addEventListener("change", () => render(current));
+for (const control of controls) control.button.addEventListener("click", () => {
+  descending = control.order === order ? !descending : defaultDescending(control.order);
+  order = control.order;
+  if (order === "none") descending = false;
+  render(current);
+});
+render(current);
 open.hidden = native;
 open.addEventListener("click", () => picker.click());
 picker.addEventListener("change", () => {
@@ -73,5 +91,5 @@ picker.addEventListener("change", () => {
   }
 });
 
-if (native) void directory(new URLSearchParams(location.search).get("path") ||
+if (native) void directory(query.get("path") ||
                           (location.pathname === "/files" ? "/" : decodeURIComponent(location.pathname)));

@@ -12,9 +12,11 @@ export interface Entry<T extends SourceFile> {
   path: string;
   directory: boolean;
   file?: T;
+  size?: number;
+  modified?: number;
 }
 
-export type SortOrder = "name" | "name-desc" | "type" | "none";
+export type SortOrder = "name" | "extension" | "modified" | "size" | "none";
 const names = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function extension(name: string): string {
@@ -22,12 +24,25 @@ function extension(name: string): string {
   return dot > 0 ? name.slice(dot + 1) : "";
 }
 
-export function sortEntries<T extends SourceFile>(entries: Entry<T>[], order: SortOrder = "name"): Entry<T>[] {
+export function sortEntries<T extends SourceFile>(entries: Entry<T>[], order: SortOrder = "name",
+                                                  descending = false): Entry<T>[] {
   const result = [...entries];
   if (order === "none") return result;
-  return result.sort((a, b) => Number(b.directory) - Number(a.directory) ||
-    (order === "type" && !a.directory ? names.compare(extension(a.name), extension(b.name)) : 0) ||
-    (order === "name-desc" ? -1 : 1) * (names.compare(a.name, b.name) || a.name.localeCompare(b.name)));
+  const direction = descending ? -1 : 1;
+  const name = (a: Entry<T>, b: Entry<T>) => names.compare(a.name, b.name) || a.name.localeCompare(b.name);
+  return result.sort((a, b) => {
+    const folders = Number(b.directory) - Number(a.directory);
+    if (folders) return folders;
+    if (order === "name") return direction * name(a, b);
+    if (order === "extension") {
+      return direction * (a.directory ? 0 : names.compare(extension(a.name), extension(b.name))) || name(a, b);
+    }
+    const left = order === "size" ? a.size ?? a.file?.size : a.modified ?? a.file?.lastModified;
+    const right = order === "size" ? b.size ?? b.file?.size : b.modified ?? b.file?.lastModified;
+    // Missing metadata stays last in either direction; never invent directory timestamps or sizes.
+    if (left === undefined || right === undefined) return Number(left === undefined) - Number(right === undefined) || name(a, b);
+    return direction * (left - right) || name(a, b);
+  });
 }
 
 export class FileTree<T extends SourceFile> {
@@ -65,11 +80,11 @@ export class FileTree<T extends SourceFile> {
     }
   }
 
-  list(path = "", query = "", order: SortOrder = "name"): Entry<T>[] {
+  list(path = "", query = "", order: SortOrder = "name", descending = false): Entry<T>[] {
     const children = this.directories.get(path);
     if (!children) throw new Error("Folder does not exist.");
     const needle = query.toLocaleLowerCase();
     return sortEntries([...children.values()]
-      .filter(entry => entry.name.toLocaleLowerCase().includes(needle)), order);
+      .filter(entry => entry.name.toLocaleLowerCase().includes(needle)), order, descending);
   }
 }

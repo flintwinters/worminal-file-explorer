@@ -8,12 +8,13 @@
 <body>
   <input id="picker" type="file" webkitdirectory multiple hidden>
   <button id="open" type="button" hidden>Open folder…</button>
-  <label>Sort <select id="sort">
-    <option value="name">Name</option>
-    <option value="name-desc">Name ↓</option>
-    <option value="type">Type</option>
-    <option value="none">Original order</option>
-  </select></label>
+  <nav id="sort" aria-label="Sort">
+    <button type="button" data-sort="name">Name</button>
+    <button type="button" data-sort="extension">Extension</button>
+    <button type="button" data-sort="modified">Modified</button>
+    <button type="button" data-sort="size">Size</button>
+    <button type="button" data-sort="none">Original</button>
+  </nav>
   <main id="entries"></main>
   <script type="module" src="/src/main.ts"></script>
 </body>
