@@ -43,6 +43,10 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   });
   dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
   const { document, Event, MouseEvent } = dom.window;
+  if (process.env.WORMINAL_FONT_JSON) {
+    const font = JSON.parse(process.env.WORMINAL_FONT_JSON);
+    assert.equal(document.documentElement.style.lineHeight, `${font.lineHeight}px`);
+  }
   const picker = document.querySelector<HTMLInputElement>("#picker")!;
   assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, false);
   const name = "<img onerror=alert(1)>.txt";

@@ -39,4 +39,4 @@ npm --prefix tools/hyperlint ci --include=dev
 python3 manage.py lint
 ```
 
-WORMINAL_FONT_JSON optionally supplies the host font family and point size at build time.
+WORMINAL_FONT_JSON optionally supplies the host font family, point size, and measured pixel line height at build time.
