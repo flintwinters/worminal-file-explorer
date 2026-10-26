@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readdir, readFile } from "node:fs/promises";
 import { JSDOM } from "jsdom";
-import { FileTree, sortEntries } from "../packages/files/src/index";
+import { FileTree, sortEntries, parentDirectory } from "../packages/files/src/index";
 import { compileLSColors, entryColor } from "../packages/files/src/colors";
 
 function file(path: string, text = "hello"): File {
@@ -56,6 +56,18 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a").length, 1);
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.textContent, "a.txt");
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "blob:local-a.txt");
+  const up = () => {
+    const event = new dom.window.KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, cancelable: true });
+    document.dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+  };
+  document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, shiftKey: true }));
+  assert.equal(document.querySelector("#path")!.textContent, "root/sub");
+  up();
+  assert.equal(document.querySelector("#path")!.textContent, "root");
+  assert.equal(document.querySelectorAll("#entries a").length, 2);
+  up();
+  assert.equal(document.querySelector("#path")!.textContent, "root");
   dom.window.close();
 });
 
@@ -80,6 +92,7 @@ test("embedded sorting retains original order on request and keeps literal links
     const { document } = dom.window;
     assert.deepEqual(requests, ["/work tree"]);
     assert.equal(document.querySelector("#path")!.textContent, "/work tree");
+    assert.equal(document.body.firstElementChild!.id, "path");
     assert.equal(document.querySelectorAll("#sort button").length, 0);
     assert.equal(document.querySelectorAll("#sort a").length, 5);
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
@@ -183,4 +196,11 @@ test("missing LS_COLORS rules use Worminal defaults while explicit resets remain
   assert.equal(entryColor(compileLSColors("di=0"), "folder", true), "");
   assert.equal(entryColor(compileLSColors("no=33"), "folder", true), "color:#f4bf75");
   assert.equal(entryColor(compileLSColors(""), "plain", false), "color:#d8d8d8");
+});
+
+test("parent navigation handles absolute, relative, trailing-slash, and literal paths", () => {
+  for (const [path, parent] of [["/", "/"], ["/home/", "/"], ["/home/user", "/home"],
+    ["", ""], ["sub", ""], ["sub/deep/", "sub"], ["/a <#?% ü>/child", "/a <#?% ü>"]]) {
+    assert.equal(parentDirectory(path!), parent);
+  }
 });

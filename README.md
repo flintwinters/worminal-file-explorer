@@ -21,7 +21,8 @@ Open folder picker grants read access and omits empty folders. No files are uplo
 `apps/explorer/src/palette.css` supplies the base colors for all three outputs.
 The build compiles its LS_COLORS environment into directory and filename-suffix color rules, supporting
 ANSI, 256-color, and RGB foreground/background values. Underline, blink, and conceal are omitted.
-Sorting uses plain text links with reversible direction arrows, followed by the current directory path.
+The current directory path appears above plain text sorting links with reversible direction arrows.
+Alt+Up opens the parent directory while retaining sorting, stopping at the filesystem or folder-picker root.
 ANSI colors use Worminal’s built-in palette in `packages/files/src/palette.json`, also consumed by the
 native theme compiler. Missing LS_COLORS rules use its blue for directories and foreground for files;
 explicit resets remain plain. Indexed colors above 15 retain the standard 256-color cube and gray ramp.

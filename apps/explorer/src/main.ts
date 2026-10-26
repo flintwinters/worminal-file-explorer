@@ -1,4 +1,4 @@
-import { FileTree, sortEntries, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
+import { FileTree, sortEntries, parentDirectory, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
 declare const __FILE_COLORS__: FileColors;
 import "./style.css";
 
@@ -20,8 +20,20 @@ let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescendi
 let current: Entry<File>[] = [];
 const path = element("path");
 const native = location.protocol === "worminal:";
+let currentDirectory = "";
 let tree: FileTree<File> | undefined;
 let urls: string[] = [];
+
+function directoryURL(destination: string): string {
+  return `worminal:///files?${new URLSearchParams({ path: destination, sort: order, desc: descending ? "1" : "0" })}`;
+}
+
+function showDirectory(destination: string): void {
+  currentDirectory = destination;
+  path.textContent = native ? destination : [tree!.rootName, destination].filter(Boolean).join("/");
+  if (native) void directory(destination);
+  else render(tree!.list(destination, "", "none"));
+}
 
 function render(list: Entry<File>[]): void {
   current = list;
@@ -39,14 +51,13 @@ function render(list: Entry<File>[]): void {
     link.style.cssText = entryColor(__FILE_COLORS__, entry.name, entry.directory);
     if (native) {
       link.href = entry.directory
-        ? `worminal:///files?${new URLSearchParams({ path: entry.path, sort: order, desc: descending ? "1" : "0" })}`
+        ? directoryURL(entry.path)
         : `worminal://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
     } else if (entry.directory) {
       link.href = `#${encodeURIComponent(entry.path)}`;
       link.addEventListener("click", event => {
         event.preventDefault();
-        path.textContent = `${tree!.rootName}/${entry.path}`;
-        render(tree!.list(entry.path, "", "none"));
+        showDirectory(entry.path);
       });
     } else {
       const url = URL.createObjectURL(entry.file!);
@@ -59,7 +70,6 @@ function render(list: Entry<File>[]): void {
 }
 
 async function directory(destination: string): Promise<void> {
-  path.textContent = destination;
   try {
     const response = await fetch(`worminal:///list?path=${encodeURIComponent(destination)}`);
     if (!response.ok) throw new Error("Could not read folder.");
@@ -87,8 +97,7 @@ picker.addEventListener("change", () => {
   if (!picker.files?.length) return;
   try {
     tree = new FileTree(picker.files);
-    path.textContent = tree.rootName;
-    render(tree.list("", "", "none"));
+    showDirectory("");
   } catch (error) {
     entries.textContent = error instanceof Error ? error.message : "Could not open folder.";
   } finally {
@@ -96,5 +105,15 @@ picker.addEventListener("change", () => {
   }
 });
 
-if (native) void directory(query.get("path") ||
+document.addEventListener("keydown", event => {
+  if (event.key !== "ArrowUp" || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (!native && !tree) return;
+  event.preventDefault();
+  const parent = parentDirectory(currentDirectory);
+  if (parent === currentDirectory) return;
+  if (native) location.assign(directoryURL(parent));
+  else showDirectory(parent);
+});
+
+if (native) showDirectory(query.get("path") ||
                           (location.pathname === "/files" ? "/" : decodeURIComponent(location.pathname)));

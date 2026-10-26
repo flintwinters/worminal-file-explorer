@@ -6,6 +6,7 @@
   <title>Files — Worminal</title>
 </head>
 <body>
+  <div id="path"></div>
   <input id="picker" type="file" webkitdirectory multiple hidden>
   <button id="open" type="button" hidden>Open folder…</button>
   <nav id="sort" aria-label="Sort">
@@ -15,7 +16,6 @@
     <a href="#" data-sort="size">Size</a>
     <a href="#" data-sort="none">Original</a>
   </nav>
-  <div id="path"></div>
   <main id="entries"></main>
   <script type="module" src="/src/main.ts"></script>
 </body>

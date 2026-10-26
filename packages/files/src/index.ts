@@ -88,3 +88,10 @@ export class FileTree<T extends SourceFile> {
       .filter(entry => entry.name.toLocaleLowerCase().includes(needle)), order, descending);
   }
 }
+
+/** Keep absolute paths at / and picker-relative paths inside their granted root. */
+export function parentDirectory(path: string): string {
+  const trimmed = path.replace(/\/+$/, "");
+  const parent = trimmed.slice(0, Math.max(0, trimmed.lastIndexOf("/")));
+  return parent || (path.startsWith("/") ? "/" : "");
+}
