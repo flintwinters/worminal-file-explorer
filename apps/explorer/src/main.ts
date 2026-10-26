@@ -1,4 +1,4 @@
-import { FileTree, sortEntries, parentDirectory, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
+import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
 declare const __FILE_COLORS__: FileColors;
 import "./style.css";
 
@@ -64,7 +64,17 @@ function render(list: Entry<File>[]): void {
       urls.push(url);
       link.href = url;
     }
-    fragment.append(link, document.createElement("br"));
+    const metadata = entryMetadata(entry);
+    const size = document.createElement("span");
+    size.className = "size";
+    size.textContent = entry.directory ? "" : formatSize(metadata.size);
+    const modified = document.createElement("span");
+    modified.className = "modified";
+    modified.textContent = formatModified(metadata.modified);
+    const row = document.createElement("div");
+    row.className = "entry";
+    row.append(link, size, modified);
+    fragment.append(row);
   }
   entries.replaceChildren(fragment);
 }

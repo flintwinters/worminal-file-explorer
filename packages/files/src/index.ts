@@ -16,6 +16,28 @@ export interface Entry<T extends SourceFile> {
   modified?: number;
 }
 
+export function entryMetadata<T extends SourceFile>(entry: Entry<T>): { size?: number; modified?: number } {
+  return { size: entry.size ?? entry.file?.size, modified: entry.modified ?? entry.file?.lastModified };
+}
+
+/** Binary units with at most one decimal and no redundant byte suffix. */
+export function formatSize(size?: number): string {
+  if (size === undefined || !Number.isFinite(size) || size < 0) return "";
+  const unit = Math.min(6, Math.floor(Math.log2(Math.max(1, size)) / 10));
+  const value = size / 1024 ** unit;
+  return `${Number(value.toFixed(unit && value < 10 ? 1 : 0))}${["", "K", "M", "G", "T", "P", "E"][unit]}`;
+}
+
+/** Local time to the minute, with a fixed-width two-digit date. */
+export function formatModified(modified?: number): string {
+  if (modified === undefined || !Number.isFinite(modified)) return "";
+  const date = new Date(modified);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(date.getFullYear() % 100)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+         `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export type SortOrder = "name" | "extension" | "modified" | "size" | "none";
 const names = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
@@ -37,8 +59,8 @@ export function sortEntries<T extends SourceFile>(entries: Entry<T>[], order: So
     if (order === "extension") {
       return direction * (a.directory ? 0 : names.compare(extension(a.name), extension(b.name))) || name(a, b);
     }
-    const left = order === "size" ? a.size ?? a.file?.size : a.modified ?? a.file?.lastModified;
-    const right = order === "size" ? b.size ?? b.file?.size : b.modified ?? b.file?.lastModified;
+    const field = order === "size" ? "size" : "modified";
+    const left = entryMetadata(a)[field], right = entryMetadata(b)[field];
     // Missing metadata stays last in either direction; never invent directory timestamps or sizes.
     if (left === undefined || right === undefined) return Number(left === undefined) - Number(right === undefined) || name(a, b);
     return direction * (left - right) || name(a, b);

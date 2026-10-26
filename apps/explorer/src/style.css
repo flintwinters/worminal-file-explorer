@@ -1,3 +1,8 @@
 @import "./palette.css";
 html { background: var(--browser-background); color: var(--browser-foreground); }
 a { color: var(--browser-foreground); text-decoration: none; }
+#entries { display: grid; grid-template-columns: minmax(0, max-content) max-content max-content; column-gap: 1ch; justify-content: start; }
+.entry { display: contents; }
+.entry a { min-width: 0; overflow-wrap: anywhere; }
+.size, .modified { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.size { text-align: right; }

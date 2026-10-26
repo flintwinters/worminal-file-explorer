@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readdir, readFile } from "node:fs/promises";
 import { JSDOM } from "jsdom";
-import { FileTree, sortEntries, parentDirectory } from "../packages/files/src/index";
+import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified } from "../packages/files/src/index";
 import { compileLSColors, entryColor } from "../packages/files/src/colors";
 
 function file(path: string, text = "hello"): File {
@@ -113,14 +113,18 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries a"), link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
     assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "worminal:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
     assert.equal(new URL(document.querySelectorAll<HTMLAnchorElement>("#entries a")[1]!.href).searchParams.get("path"), "/work tree/empty");
-    assert.equal(document.querySelectorAll("#entries br").length, 2);
+    assert.equal(document.querySelectorAll("#entries .entry").length, 2);
+    const cells = [...document.querySelectorAll("#entries .entry")].map(row =>
+      [...row.children].map(cell => cell.textContent));
+    assert.deepEqual(cells, [["literal <#?% ü>.txt", "14", formatModified(1000)],
+                             ["empty", "", formatModified(2000)]]);
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
   }
 });
 
 test("error template and native initial background use the page palette", async () => {
-  assert.deepEqual((await readdir("dist")).sort(), ["error.html", "index.html", "theme.json"]);
+  assert.deepEqual((await readdir("dist")).sort(), ["error.html", "find.js", "index.html", "theme.json"]);
   const error = await readFile("dist/error.html", "utf8");
   const theme = JSON.parse(await readFile("dist/theme.json", "utf8"));
   assert.equal(error.split(theme.message_slot).length, 2);
@@ -203,4 +207,37 @@ test("parent navigation handles absolute, relative, trailing-slash, and literal 
     ["", ""], ["sub", ""], ["sub/deep/", "sub"], ["/a <#?% ü>/child", "/a <#?% ü>"]]) {
     assert.equal(parentDirectory(path!), parent);
   }
+});
+
+test("metadata columns use compact sizes and local minute timestamps without inventing values", () => {
+  for (const [size, text] of [[0, "0"], [14, "14"], [1024, "1K"], [1536, "1.5K"], [3 * 1024 ** 2, "3M"]] as const)
+    assert.equal(formatSize(size), text);
+  for (const size of [undefined, -1, NaN, Infinity]) assert.equal(formatSize(size), "");
+  assert.equal(formatModified(new Date(2026, 9, 25, 14, 3).getTime()), "26-10-25 14:03");
+  for (const time of [undefined, NaN, Infinity, 1e20]) assert.equal(formatModified(time), "");
+  const leaf = file("root/a", "hello");
+  assert.deepEqual(entryMetadata({ name: "a", path: "a", directory: false, file: leaf }),
+                   { size: 5, modified: 1000 });
+  assert.deepEqual(entryMetadata({ name: "dir", path: "dir", directory: true }),
+                   { size: undefined, modified: undefined });
+});
+
+test("native find presentation preserves the selection and focuses its containing link on accept", async () => {
+  const dom = new JSDOM('<a href="/target"><span>match</span></a>', { runScripts: "outside-only" });
+  const script = await readFile("dist/find.js", "utf8");
+  const present = (action: string) => dom.window.eval(script + `\nWorminalFind.update('${action}')`);
+  const { document } = dom.window;
+  const selection = document.getSelection()!;
+  const range = document.createRange();
+  range.selectNodeContents(document.querySelector("span")!);
+  selection.addRange(range);
+  present("show");
+  assert.equal(selection.toString(), "match");
+  assert.ok(document.querySelector("[data-worminal-find]")!.textContent!.includes("#ffdd00"));
+  present("accept");
+  assert.equal(document.activeElement, document.querySelector("a"));
+  assert.equal(selection.toString(), "match");
+  present("clear");
+  assert.equal(document.querySelectorAll("[data-worminal-find]").length, 0);
+  dom.window.close();
 });

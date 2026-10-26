@@ -18,3 +18,7 @@ const css = await bundle({ absWorkingDir: fileURLToPath(root), entryPoints: ["ap
                           bundle: true, write: false });
 await writeFile(new URL("dist/error.html", root), template.replace("{{style}}", css.outputFiles[0].text));
 await writeFile(new URL("dist/theme.json", root), JSON.stringify({ background, message_slot: "{{message}}" }));
+
+await bundle({ absWorkingDir: fileURLToPath(root), entryPoints: ["apps/explorer/src/find.ts"],
+               bundle: true, format: "iife", globalName: "WorminalFind", minify: true,
+               outfile: "dist/find.js" });

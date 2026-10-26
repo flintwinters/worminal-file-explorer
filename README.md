@@ -2,10 +2,11 @@
 
 The submodule owns Worminal's plain dark directory page, error-page template, and palette.
 The embedded page reproduces the original native listing: file/folder links in host enumeration
-order when Original is selected, with ordinary browser navigation. Plain buttons sort by Name,
-Extension, Modified, or Size in one click. Click the active button to reverse it; Modified starts
+order when Original is selected, with ordinary browser navigation. Plain text links sort by Name,
+Extension, Modified, or Size in one click. Click the active link to reverse it; Modified starts
 newest-first and Size largest-first. Sorted modes keep folders first. Folder navigation retains
-the chosen sort. Filenames are text, never HTML; links are never underlined.
+the chosen sort. Listing columns show names, compact binary sizes (14, 1.2K, 3M), and local modification
+times (YY-MM-DD HH:mm); directory sizes and unavailable metadata stay blank. Filenames are text, never HTML; links are never underlined.
 
 ```sh
 npm ci
@@ -17,6 +18,7 @@ python3 manage.py build
 metadata endpoint; file links use the browser's normal file handling. Outside Worminal an
 Open folder picker grants read access and omits empty folders. No files are uploaded or modified.
 `dist/error.html` is the host error template; its declared message slot accepts escaped text only.
+`dist/find.js` supplies isolated-world high-contrast find selection and link focus for the native browser.
 `dist/theme.json` exports the native initial background and message-slot contract.
 `apps/explorer/src/palette.css` supplies the base colors for all three outputs.
 The build compiles its LS_COLORS environment into directory and filename-suffix color rules, supporting
