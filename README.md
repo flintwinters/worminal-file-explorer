@@ -1,6 +1,7 @@
 # Worminal file explorer
 
-The submodule owns Worminal's plain dark directory page, error-page template, and palette.
+This independent workspace owns the plain directory page and its standalone palette defaults.
+Worminal owns native browser error chrome and supplies its palette and font at build time.
 The page reproduces the original native listing: file/folder links in host enumeration
 order when Original is selected, with ordinary browser navigation. Plain text links sort by Name,
 Extension, Modified, or Size in one click. Click the active link to reverse it; Modified starts
@@ -15,8 +16,9 @@ python3 manage.py build
 ```
 
 `dist/index.html` is a single offline HTML application. Open it directly with
-`worminal --new-browser-tab /absolute/path/to/dist/index.html`, or run this workspace's
-`python3 manage.py open` inside a Worminal terminal to open the caller's directory.
+`worminal --new-browser-tab /absolute/path/to/dist/index.html` from a Worminal terminal.
+Use `worminal --surf /absolute/path/to/dist/index.html` from other terminals.
+`manage.py` is internal build/test tooling, not an application launcher.
 Rebuild and reopen or reload the page to use the latest output; Worminal is not rebuilt or reinstalled.
 Worminal provides `window.worminal.readDirectory(path)` to explicitly selected local HTML documents.
 Other browsers retain a folder picker; no files are uploaded or modified.

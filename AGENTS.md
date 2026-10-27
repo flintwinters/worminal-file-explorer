@@ -15,7 +15,8 @@ Explicit LS_COLORS rules take precedence. Use text-safe DOM operations; filename
 
 This independent npm workspace exports one self-contained dist/index.html, opened as an ordinary local file.
 Rebuild and normally reload (Ctrl+R) or reopen the document; the running Worminal frontend stays.
-Its manage.py open passes the compiled HTML and caller directory to worminal --new-browser-tab explicitly.
+Launch through worminal --new-browser-tab with the compiled HTML target explicitly.
+manage.py is internal build/test tooling, never a user launcher. Do not introduce live updates without a request.
 Selected local documents use the host's generic read-only directory metadata API; file links use file://.
 Metadata includes directory status, size and modification time; executable and symlink status remain unavailable.
 Do not infer those attributes from names. Standalone browsers retain a folder picker and the shared FileTree index.
