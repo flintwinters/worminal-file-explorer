@@ -7,7 +7,8 @@ Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots
 File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
 Links reveal underlines on hover. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
-Image links load a bounded hover preview on demand, using the same native or picked-file URL as navigation.
+Images, videos, and PDF first pages load bounded hover previews on demand from their file URLs.
+PDF.js and its worker are bundled offline; leaving a preview cancels its loading and playback.
 An optional WORMINAL_PALETTE JSON build input supplies host colors; standalone defaults live in palette.json.
 Explicit LS_COLORS rules take precedence. Use text-safe DOM operations; filenames are never markup.
 

@@ -3,7 +3,10 @@ declare const __HOST_FONT__: { family: string; size: number; lineHeight?: number
 declare const __FILE_COLORS__: FileColors;
 declare global {
   interface Window {
-    worminal?: { readDirectory(path: string): Promise<[string, boolean, number?, number?][]> };
+    worminal?: {
+      readDirectory(path: string): Promise<[string, boolean, number?, number?][]>;
+      readFile?(path: string, signal?: AbortSignal): Promise<ArrayBuffer>;
+    };
   }
 }
 import "./style.css";
@@ -36,28 +39,55 @@ const native = Boolean(window.worminal);
 let currentDirectory = "";
 let tree: FileTree<File> | undefined;
 let urls: string[] = [];
-let preview: HTMLImageElement | undefined;
+let preview: HTMLElement | undefined;
+let stopPreview: (() => void) | undefined;
 
 function hidePreview(): void {
+  stopPreview?.();
+  stopPreview = undefined;
   preview?.remove();
   preview = undefined;
 }
 
-function imagePreview(link: HTMLElement, entry: Entry<File>, target: string): void {
-  if (entry.directory || !(entry.file?.type.startsWith("image/") ||
-      /\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(entry.name))) return;
+function mediaPreview(link: HTMLElement, entry: Entry<File>, target: string): void {
+  if (entry.directory) return;
+  const type = entry.file?.type || "";
+  const kind = type === "application/pdf" || /\.pdf$/i.test(entry.name) ? "pdf"
+    : type.startsWith("video/") || /\.(mp4|m4v|webm|ogv|ogg|mov|mkv)$/i.test(entry.name) ? "video"
+    : type.startsWith("image/") || /\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(entry.name) ? "image" : undefined;
+  if (!kind) return;
   link.addEventListener("pointerenter", () => {
     hidePreview();
-    const image = document.createElement("img");
-    image.className = "image-preview";
-    image.alt = entry.name;
-    // Each hover owns its image so a late load/error cannot affect another preview.
-    image.hidden = true;
-    image.addEventListener("load", () => { image.hidden = false; });
-    image.addEventListener("error", () => image.remove());
-    image.src = target;
-    preview = image;
-    document.body.append(image);
+    const node = document.createElement(kind === "pdf" ? "canvas" : kind === "video" ? "video" : "img");
+    node.className = "image-preview";
+    node.setAttribute("aria-label", entry.name);
+    node.hidden = true;
+    preview = node;
+    document.body.append(node);
+    // Each hover owns its callbacks: late completions never replace the next preview.
+    const ready = () => { if (preview === node) node.hidden = false; };
+    node.addEventListener("error", () => { if (preview === node) hidePreview(); });
+    if (node instanceof HTMLImageElement) {
+      node.alt = entry.name;
+      node.addEventListener("load", ready);
+      node.src = target;
+    } else if (node instanceof HTMLVideoElement) {
+      node.muted = true;
+      node.autoplay = true;
+      node.loop = true;
+      node.playsInline = true;
+      node.preload = "metadata";
+      node.addEventListener("loadeddata", ready);
+      node.src = target;
+      stopPreview = () => { node.pause(); node.removeAttribute("src"); node.load(); };
+    } else {
+      const abort = new AbortController();
+      stopPreview = () => abort.abort();
+      void import("./pdf-preview").then(module =>
+        module.renderPDF(node, target, abort.signal, entry.file, native ? entry.path : undefined)).then(ready).catch(() => {
+          if (preview === node) hidePreview();
+        });
+    }
   });
   link.addEventListener("pointerleave", hidePreview);
 }
@@ -117,7 +147,7 @@ function render(list: Entry<File>[]): void {
       openFile.textContent = "open";
       openFile.href = link.href;
       openFile.setAttribute("aria-label", `Open ${entry.name}`);
-      imagePreview(link, entry, openFile.href);
+      mediaPreview(link, entry, openFile.href);
       link.removeAttribute("href");
       action.append(openFile);
     }

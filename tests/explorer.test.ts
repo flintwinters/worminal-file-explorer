@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readdir, readFile } from "node:fs/promises";
 import { JSDOM } from "jsdom";
+import { transform } from "esbuild";
+
+async function runPage(dom: JSDOM): Promise<void> {
+  // JSDOM has no module-script runner; preserve the page URL when evaluating its bundle.
+  const script = dom.window.document.querySelector("script")!.textContent!;
+  const result = await transform(script, { define: { "import.meta.url": JSON.stringify(dom.window.location.href) } });
+  dom.window.eval(result.code);
+}
 import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified } from "../packages/files/src/index";
 import { compileLSColors, entryColor } from "../packages/files/src/colors";
 
@@ -41,7 +49,7 @@ test("standalone page uses plain links and a read-only folder picker", async () 
       window.URL.revokeObjectURL = () => {};
     },
   });
-  dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
+  await runPage(dom);
   const { document, Event, MouseEvent } = dom.window;
   if (process.env.WORMINAL_FONT_JSON) {
     const font = JSON.parse(process.env.WORMINAL_FONT_JSON);
@@ -93,7 +101,7 @@ test("embedded sorting retains original order on request and keeps literal links
         } };
       },
     });
-    dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
+    await runPage(dom);
     await new Promise(resolve => setTimeout(resolve, 0));
     const { document } = dom.window;
     assert.deepEqual(requests, ["/work tree"]);
@@ -237,7 +245,7 @@ test("image hover previews load on demand and clear on leave, failure, scroll, a
         };
       },
     });
-    dom.window.eval(dom.window.document.querySelector("script")!.textContent!);
+    await runPage(dom);
     const { document, Event } = dom.window;
     if (native) await new Promise(resolve => setTimeout(resolve, 0));
     else {
@@ -280,5 +288,93 @@ test("image hover previews load on demand and clear on leave, failure, scroll, a
     document.querySelector<HTMLAnchorElement>('[data-sort="size"]')!.click();
     assert.equal(preview(), null);
     dom.window.close();
+  }
+});
+
+
+test("video previews are lazy, muted, and release playback on leave and replacement", async () => {
+  const html = await readFile("dist/index.html", "utf8");
+  for (const native of [false, true]) {
+    const names = ["clip.mp4", "movie.webm", "film.ogv", "folder.mp4", "document.pdf", "note.txt"];
+    let pauses = 0;
+    let loads = 0;
+    const dom = new JSDOM(html, { runScripts: "outside-only", url: "file:///explorer/index.html?path=/media",
+      beforeParse(window) {
+        window.TextDecoder = TextDecoder;
+        window.HTMLMediaElement.prototype.pause = () => { pauses++; };
+        window.HTMLMediaElement.prototype.load = () => { loads++; };
+        window.URL.createObjectURL = file => `blob:local-${(file as File).name}`;
+        window.URL.revokeObjectURL = () => {};
+        if (native) (window as unknown as { worminal: object }).worminal = {
+          readDirectory: async () => names.map(name => [Buffer.from(name).toString("base64"), name === "folder.mp4"]),
+        };
+      },
+    });
+    await runPage(dom);
+    const { document, Event } = dom.window;
+    if (native) await new Promise(resolve => setTimeout(resolve, 0));
+    else {
+      const picker = document.querySelector<HTMLInputElement>("#picker")!;
+      Object.defineProperty(picker, "files", { value: names.map(name =>
+        file(`root/${name === "folder.mp4" ? `${name}/child.txt` : name}`)) });
+      picker.dispatchEvent(new Event("change"));
+    }
+    const link = (name: string) => [...document.querySelectorAll(".entry-name")].find(node => node.textContent === name)!;
+    const hover = (name: string) => link(name).dispatchEvent(new Event("pointerenter"));
+    assert.equal(document.querySelector("video, canvas"), null);
+    hover("folder.mp4");
+    hover("note.txt");
+    assert.equal(document.querySelector(".image-preview"), null);
+    hover("clip.mp4");
+    const first = document.querySelector("video")!;
+    assert.equal(first.src, link("clip.mp4").parentElement!.querySelector<HTMLAnchorElement>(".open-file")!.href);
+    assert.equal(first.muted, true);
+    assert.equal(first.autoplay, true);
+    assert.equal(first.loop, true);
+    assert.equal(first.playsInline, true);
+    assert.equal(first.hidden, true);
+    first.dispatchEvent(new Event("loadeddata"));
+    assert.equal(first.hidden, false);
+    hover("movie.webm");
+    const second = document.querySelector("video")!;
+    assert.notEqual(second, first);
+    assert.equal(first.hasAttribute("src"), false);
+    assert.equal(pauses, 1);
+    assert.equal(loads, 1);
+    first.dispatchEvent(new Event("error"));
+    assert.equal(document.querySelector("video"), second);
+    link("movie.webm").dispatchEvent(new Event("pointerleave"));
+    assert.equal(document.querySelector("video"), null);
+    assert.equal(pauses, 2);
+    hover("film.ogv");
+    document.querySelector("video")!.dispatchEvent(new Event("error"));
+    assert.equal(document.querySelector("video"), null);
+    hover("document.pdf");
+    assert.equal(document.querySelector("canvas")!.hidden, true);
+    link("document.pdf").dispatchEvent(new Event("pointerleave"));
+    assert.equal(document.querySelector("canvas"), null);
+    // Let the deferred PDF import observe its aborted signal before closing the document.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    dom.window.close();
+  }
+});
+
+
+test("bundled PDF engine renders the first page into pixels", async () => {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const data = new Uint8Array(await readFile("tests/fixtures/preview.pdf"));
+  const loading = getDocument({ data, isEvalSupported: false });
+  try {
+    const pdf = await loading.promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1 });
+    const factory = pdf.canvasFactory as { create(width: number, height: number): {
+      canvas: HTMLCanvasElement; context: CanvasRenderingContext2D;
+    } };
+    const { context } = factory.create(viewport.width, viewport.height);
+    await page.render({ canvasContext: context, viewport }).promise;
+    assert.deepEqual([...context.getImageData(50, 50, 1, 1).data], [255, 0, 0, 255]);
+  } finally {
+    await loading.destroy();
   }
 });
