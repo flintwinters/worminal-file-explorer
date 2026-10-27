@@ -45,4 +45,4 @@ File names do not open files. Hover a row to reveal its gray open action before 
 
 Hover previews support images, PDF first pages, and browser-supported video codecs (MP4, WebM, Ogg, MOV, and MKV). Videos are muted. Native PDF previews accept regular files up to 32 MiB.
 
-Click the current path or a file name to copy its full path; Enter and Space work with keyboard focus.
+Click the current path to copy it. Click a file name or its metadata to select its row; Enter and Space select focused file names.

@@ -380,7 +380,7 @@ test("bundled PDF engine renders the first page into pixels", async () => {
 });
 
 
-test("path and file-name activation copy literal paths while directories retain navigation", async () => {
+test("path activation copies while file activation selects and sorting preserves selection", async () => {
   const html = await readFile("dist/index.html", "utf8");
   for (const clipboardAPI of [false, true]) {
     const copied: string[] = [];
@@ -390,7 +390,8 @@ test("path and file-name activation copy literal paths while directories retain 
         window.TextDecoder = TextDecoder;
         (window as unknown as { worminal: object }).worminal = {
           readDirectory: async () => [[Buffer.from(name).toString("base64"), false],
-                                     [Buffer.from("folder").toString("base64"), true]],
+                                     [Buffer.from("folder").toString("base64"), true],
+                                     [Buffer.from("other.txt").toString("base64"), false]],
         };
         if (clipboardAPI) Object.defineProperty(window.navigator, "clipboard", {
           value: { writeText: async (text: string) => { copied.push(text); } },
@@ -410,14 +411,25 @@ test("path and file-name activation copy literal paths while directories retain 
     const directory = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === "folder")!;
     path.click();
     file.click();
+    assert.equal(file.getAttribute("aria-pressed"), "true");
+    assert.equal(file.parentElement!.classList.contains("selected"), true);
+    const other = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === "other.txt")!;
+    other.parentElement!.querySelector<HTMLElement>(".size")!.click();
+    assert.equal(other.getAttribute("aria-pressed"), "true");
+    assert.equal(file.getAttribute("aria-pressed"), "false");
     file.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
     file.dispatchEvent(new KeyboardEvent("keydown", { key: " ", cancelable: true }));
     await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(copied, ["/work tree", ...Array(3).fill(`/work tree/${name}`)]);
+    assert.deepEqual(copied, ["/work tree"]);
+    assert.equal(document.querySelectorAll(".entry.selected").length, 1);
+    assert.equal(file.getAttribute("aria-pressed"), "true");
     assert.equal(file.hasAttribute("href"), false);
     assert.equal(directory.hasAttribute("href"), true);
     assert.equal(directory.hasAttribute("role"), false);
-    assert.equal(file.title, "Copied path");
+    assert.equal(file.title, "Select file");
+    document.querySelector<HTMLElement>('[data-sort="name"]')!.click();
+    assert.equal(document.querySelector(".entry.selected .entry-name")!.textContent, name);
+    assert.equal(document.querySelector('.entry.selected .entry-name')!.getAttribute("aria-pressed"), "true");
     assert.equal(document.querySelector("textarea"), null);
     assert.equal(document.querySelector<HTMLAnchorElement>(".open-file")!.href,
       "file:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");

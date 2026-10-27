@@ -48,11 +48,11 @@ async function copyPath(node: HTMLElement, value: string): Promise<void> {
   }
 }
 
-function copyOnActivate(node: HTMLElement, value: () => string): void {
+function onActivate(node: HTMLElement, action: () => void, title: string): void {
   node.setAttribute("role", "button");
   node.tabIndex = 0;
-  node.title = "Copy path";
-  node.addEventListener("click", () => { void copyPath(node, value()); });
+  node.title = title;
+  node.addEventListener("click", action);
   node.addEventListener("keydown", event => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -70,8 +70,9 @@ let order = controls.find(control => control.order === query.get("sort"))?.order
 const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "size";
 let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
 let current: Entry<File>[] = [];
+let selectedPath: string | null = null;
 const path = element("path");
-copyOnActivate(path, () => path.textContent || "");
+onActivate(path, () => { void copyPath(path, path.textContent || ""); }, "Copy path");
 const native = Boolean(window.worminal);
 let currentDirectory = "";
 let tree: FileTree<File> | undefined;
@@ -145,6 +146,15 @@ function showDirectory(destination: string): void {
   else render(tree!.list(destination, "", "none"));
 }
 
+function selectFile(path: string | null): void {
+  selectedPath = path;
+  for (const row of entries.querySelectorAll<HTMLElement>(".entry")) {
+    const selected = path !== null && row.dataset.path === path;
+    row.classList.toggle("selected", selected);
+    row.querySelector(".entry-name[role=button]")?.setAttribute("aria-pressed", String(selected));
+  }
+}
+
 function render(list: Entry<File>[]): void {
   hidePreview();
   current = list;
@@ -186,7 +196,7 @@ function render(list: Entry<File>[]): void {
       openFile.setAttribute("aria-label", `Open ${entry.name}`);
       mediaPreview(link, entry, openFile.href);
       link.removeAttribute("href");
-      copyOnActivate(link, () => native ? entry.path : `${tree!.rootName}/${entry.path}`);
+      onActivate(link, () => selectFile(entry.path), "Select file");
       action.append(openFile);
     }
     const metadata = entryMetadata(entry);
@@ -198,10 +208,15 @@ function render(list: Entry<File>[]): void {
     modified.textContent = formatModified(metadata.modified);
     const row = document.createElement("div");
     row.className = "entry";
+    row.dataset.path = entry.path;
+    if (!entry.directory) row.addEventListener("click", event => {
+      if (!(event.target as Element).closest(".entry-name, a[href]")) selectFile(entry.path);
+    });
     row.append(link, action, size, modified);
     fragment.append(row);
   }
   entries.replaceChildren(fragment);
+  selectFile(list.some(entry => !entry.directory && entry.path === selectedPath) ? selectedPath : null);
 }
 
 async function directory(destination: string): Promise<void> {

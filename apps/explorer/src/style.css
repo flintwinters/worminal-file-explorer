@@ -10,6 +10,7 @@ a[href]:hover, [role="button"]:hover { text-decoration: underline; }
 .entry > * { display: table-cell; }
 .entry > :not(:last-child) { padding-right: 1ch; }
 .entry:hover { background: rgba(128, 128, 128, 0.18); }
+.entry.selected { background: rgba(128, 128, 128, 0.32); }
 .entry a { min-width: 0; overflow-wrap: anywhere; }
 .size, .modified { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .size { text-align: right; }
