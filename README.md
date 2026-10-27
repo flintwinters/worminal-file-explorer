@@ -46,6 +46,3 @@ File names do not open files. Hover a row to reveal its gray open action before 
 Hover previews support images, PDF first pages, and browser-supported video codecs (MP4, WebM, Ogg, MOV, and MKV). Videos are muted. Native PDF previews accept regular files up to 32 MiB.
 
 Click the current path to copy it. Click a file name or its metadata to select its row; Enter and Space select focused file names.
-
-Builds publish index.html atomically. Native explorer tabs detect build revisions and refresh automatically;
-manage.py open uses a content-versioned URL so an existing Worminal owner loads the latest build.
