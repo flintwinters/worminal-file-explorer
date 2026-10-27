@@ -106,7 +106,6 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(dom.window.getComputedStyle(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!).textDecoration, "none");
     assert.equal(document.querySelectorAll("select").length, 0);
     const click = (key: string) => document.querySelector<HTMLAnchorElement>(`[data-sort="${key}"]`)!.click();
-    click("modified");
     assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↓");
     click("modified");
     assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↑");

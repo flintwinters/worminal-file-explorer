@@ -27,7 +27,7 @@ const open = element<HTMLButtonElement>("open");
 const controls = [...element("sort").querySelectorAll<HTMLAnchorElement>("a")]
   .map(link => ({ link, label: link.textContent!, order: link.dataset.sort as SortOrder }));
 const query = new URLSearchParams(location.search);
-let order = controls.find(control => control.order === query.get("sort"))?.order || "name";
+let order = controls.find(control => control.order === query.get("sort"))?.order || "modified";
 const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "size";
 let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
 let current: Entry<File>[] = [];

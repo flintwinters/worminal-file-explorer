@@ -2,6 +2,7 @@
 
 Keep the explorer plain, dark, small, and local. Match the original native directory listing:
 directory links, explicit file open actions, normal browser navigation, and the current path above plain text sorting links.
+Default to modified time descending; explicit URL sort choices override it.
 Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots. Avoid decorative styling.
 File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
