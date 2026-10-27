@@ -10,4 +10,6 @@ a[href]:hover { text-decoration: underline; }
 .entry a { min-width: 0; overflow-wrap: anywhere; }
 .size, .modified { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .size { text-align: right; }
+.open-file { color: gray; opacity: 0; }
+.entry:hover .open-file, .entry:focus-within .open-file { opacity: 1; }
 .image-preview { position: fixed; right: 1rem; top: 1rem; max-width: min(720px, 90vw); max-height: calc(100vh - 2rem); object-fit: contain; pointer-events: none; background: var(--browser-background); border: 1px solid var(--browser-foreground); z-index: 1; }

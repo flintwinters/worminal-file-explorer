@@ -40,3 +40,5 @@ python3 manage.py lint
 ```
 
 WORMINAL_FONT_JSON optionally supplies the host font family, point size, and measured pixel line height at build time.
+
+File names do not open files. Hover a row to reveal its gray open action before the size column; keyboard focus reveals it too.

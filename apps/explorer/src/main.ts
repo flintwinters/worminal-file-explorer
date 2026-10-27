@@ -43,7 +43,7 @@ function hidePreview(): void {
   preview = undefined;
 }
 
-function imagePreview(link: HTMLAnchorElement, entry: Entry<File>): void {
+function imagePreview(link: HTMLElement, entry: Entry<File>, target: string): void {
   if (entry.directory || !(entry.file?.type.startsWith("image/") ||
       /\.(avif|bmp|gif|ico|jpe?g|png|svg|webp)$/i.test(entry.name))) return;
   link.addEventListener("pointerenter", () => {
@@ -55,7 +55,7 @@ function imagePreview(link: HTMLAnchorElement, entry: Entry<File>): void {
     image.hidden = true;
     image.addEventListener("load", () => { image.hidden = false; });
     image.addEventListener("error", () => image.remove());
-    image.src = link.href;
+    image.src = target;
     preview = image;
     document.body.append(image);
   });
@@ -91,6 +91,7 @@ function render(list: Entry<File>[]): void {
   const fragment = document.createDocumentFragment();
   for (const entry of sortEntries(list, order, descending)) {
     const link = document.createElement("a");
+    link.className = "entry-name";
     link.textContent = entry.name;
     link.style.cssText = entryColor(__FILE_COLORS__, entry.name, entry.directory);
     if (native) {
@@ -108,7 +109,18 @@ function render(list: Entry<File>[]): void {
       urls.push(url);
       link.href = url;
     }
-    imagePreview(link, entry);
+    const action = document.createElement("span");
+    action.className = "action";
+    if (!entry.directory) {
+      const openFile = document.createElement("a");
+      openFile.className = "open-file";
+      openFile.textContent = "open";
+      openFile.href = link.href;
+      openFile.setAttribute("aria-label", `Open ${entry.name}`);
+      imagePreview(link, entry, openFile.href);
+      link.removeAttribute("href");
+      action.append(openFile);
+    }
     const metadata = entryMetadata(entry);
     const size = document.createElement("span");
     size.className = "size";
@@ -118,7 +130,7 @@ function render(list: Entry<File>[]): void {
     modified.textContent = formatModified(metadata.modified);
     const row = document.createElement("div");
     row.className = "entry";
-    row.append(link, size, modified);
+    row.append(link, action, size, modified);
     fragment.append(row);
   }
   entries.replaceChildren(fragment);

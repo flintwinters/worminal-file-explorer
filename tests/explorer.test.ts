@@ -52,14 +52,16 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   const name = "<img onerror=alert(1)>.txt";
   Object.defineProperty(picker, "files", { value: [file(`root/${name}`), file("root/sub/a.txt")] });
   picker.dispatchEvent(new Event("change"));
-  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a").length, 2);
-  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[1]!.textContent, name);
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name").length, 2);
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[1]!.textContent, name);
   assert.equal(document.querySelectorAll("#entries img, table, dialog, script[src], link[href]").length, 0);
-  document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.equal(document.querySelector("#path")!.textContent, "root/sub");
-  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a").length, 1);
-  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.textContent, "a.txt");
-  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "blob:local-a.txt");
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name").length, 1);
+  assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.textContent, "a.txt");
+  assert.equal(document.querySelector("#entries .entry-name")!.hasAttribute("href"), false);
+  assert.equal(document.querySelector<HTMLAnchorElement>(".open-file")!.href, "blob:local-a.txt");
+  assert.equal(document.querySelector(".open-file")!.textContent, "open");
   const up = () => {
     const event = new dom.window.KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, cancelable: true });
     document.dispatchEvent(event);
@@ -69,7 +71,7 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   assert.equal(document.querySelector("#path")!.textContent, "root/sub");
   up();
   assert.equal(document.querySelector("#path")!.textContent, "root");
-  assert.equal(document.querySelectorAll("#entries a").length, 2);
+  assert.equal(document.querySelectorAll("#entries .entry-name").length, 2);
   up();
   assert.equal(document.querySelector("#path")!.textContent, "root");
   dom.window.close();
@@ -100,8 +102,8 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelectorAll("#sort button").length, 0);
     assert.equal(document.querySelectorAll("#sort a").length, 5);
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
-    assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries a"), link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
-    assert.equal(dom.window.getComputedStyle(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!).textDecoration, "none");
+    assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name"), link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
+    assert.equal(dom.window.getComputedStyle(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!).textDecoration, "none");
     assert.equal(document.querySelectorAll("select").length, 0);
     const click = (key: string) => document.querySelector<HTMLAnchorElement>(`[data-sort="${key}"]`)!.click();
     click("modified");
@@ -109,19 +111,23 @@ test("embedded sorting retains original order on request and keeps literal links
     click("modified");
     assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↑");
     click("extension");
-    const folder = new URL(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href);
+    const folder = new URL(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.href);
     assert.equal(folder.searchParams.get("path"), "/work tree/empty");
     assert.equal(folder.searchParams.get("sort"), "extension");
     assert.equal(folder.searchParams.get("desc"), "0");
     click("none");
-    assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries a"), link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
-    assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries a")[0]!.href, "file:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
-    assert.equal(new URL(document.querySelectorAll<HTMLAnchorElement>("#entries a")[1]!.href).searchParams.get("path"), "/work tree/empty");
+    assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name"), link => link.textContent), ["literal <#?% ü>.txt", "empty"]);
+    assert.equal(document.querySelectorAll(".open-file").length, 1);
+    assert.equal(document.querySelector("#entries .entry-name")!.hasAttribute("href"), false);
+    assert.equal(document.querySelector<HTMLAnchorElement>(".open-file")!.href, "file:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
+    assert.equal(document.querySelector(".open-file")!.getAttribute("aria-label"), "Open literal <#?% ü>.txt");
+    assert.equal(dom.window.getComputedStyle(document.querySelector(".open-file")!).opacity, "0");
+    assert.equal(new URL(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[1]!.href).searchParams.get("path"), "/work tree/empty");
     assert.equal(document.querySelectorAll("#entries .entry").length, 2);
     const cells = [...document.querySelectorAll("#entries .entry")].map(row =>
       [...row.children].map(cell => cell.textContent));
-    assert.deepEqual(cells, [["literal <#?% ü>.txt", "14", formatModified(1000)],
-                             ["empty", "", formatModified(2000)]]);
+    assert.deepEqual(cells, [["literal <#?% ü>.txt", "open", "14", formatModified(1000)],
+                             ["empty", "", "", formatModified(2000)]]);
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
   }
@@ -240,7 +246,7 @@ test("image hover previews load on demand and clear on leave, failure, scroll, a
       Object.defineProperty(picker, "files", { value: names.map(name => file(`root/${name === "folder.png" ? `${name}/child.txt` : name}`)) });
       picker.dispatchEvent(new Event("change"));
     }
-    const links = [...document.querySelectorAll<HTMLAnchorElement>("#entries a")];
+    const links = [...document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")];
     const link = (name: string) => links.find(value => value.textContent === name)!;
     const preview = () => document.querySelector<HTMLImageElement>(".image-preview");
     const hover = (name: string) => link(name).dispatchEvent(new Event("pointerenter"));
@@ -251,7 +257,7 @@ test("image hover previews load on demand and clear on leave, failure, scroll, a
     }
     hover(names[0]!);
     const first = preview()!;
-    assert.equal(first.src, link(names[0]!).href);
+    assert.equal(first.src, link(names[0]!).parentElement!.querySelector<HTMLAnchorElement>(".open-file")!.href);
     assert.equal(first.alt, names[0]);
     assert.equal(first.hidden, true);
     first.dispatchEvent(new Event("load"));
