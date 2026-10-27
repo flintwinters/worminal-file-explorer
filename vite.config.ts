@@ -1,3 +1,4 @@
+import buildMeta from "./build-meta.json";
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import { compileLSColors } from "./packages/files/src/colors";
@@ -10,6 +11,8 @@ export default defineConfig({
   define: { __HOST_FONT__: process.env.WORMINAL_FONT_JSON || "null",
     __FILE_COLORS__: JSON.stringify(compileLSColors(process.env.LS_COLORS || "",
     process.env.WORMINAL_PALETTE_JSON ? JSON.parse(process.env.WORMINAL_PALETTE_JSON) : undefined)) },
-  plugins: [viteSingleFile()],
+  plugins: [{ name: "explorer-build-version", transformIndexHtml: () => [{
+    tag: "meta", attrs: { name: buildMeta.versionTag, content: crypto.randomUUID() }, injectTo: "head",
+  }] }, viteSingleFile()],
   build: { outDir: "../../dist", emptyOutDir: true },
 });

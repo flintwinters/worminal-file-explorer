@@ -10,6 +10,8 @@ declare global {
   }
 }
 import "./style.css";
+import { watchBuild } from "./live-reload";
+watchBuild();
 
 if (__HOST_FONT__) {
   document.documentElement.style.fontFamily = `${JSON.stringify(__HOST_FONT__.family)}, monospace`;

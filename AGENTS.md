@@ -25,3 +25,6 @@ Hyperlinter is pinned in tools/hyperlint; run python3 manage.py lint after insta
 dependencies. Preserve reported policy; do not write baselines merely to make findings pass.
 
 WORMINAL_FONT_JSON optionally supplies the host font family, point size, and measured pixel line height at build time.
+
+Builds publish index.html atomically. Native explorer tabs detect build revisions and refresh automatically;
+manage.py open uses a content-versioned URL so an existing Worminal owner loads the latest build.
