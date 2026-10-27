@@ -4,7 +4,7 @@ Keep the explorer plain, dark, small, and local. Match the original native direc
 directory links, explicit file open actions, normal browser navigation, and the current path above plain text sorting links.
 Default to modified time descending; explicit URL sort choices override it.
 Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots. Avoid decorative styling.
-File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
+Clicking the current path or a file name copies its full path. File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
 Links reveal underlines on hover. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
 Images, videos, and PDF first pages load bounded hover previews on demand from their file URLs.

@@ -378,3 +378,49 @@ test("bundled PDF engine renders the first page into pixels", async () => {
     await loading.destroy();
   }
 });
+
+
+test("path and file-name activation copy literal paths while directories retain navigation", async () => {
+  const html = await readFile("dist/index.html", "utf8");
+  for (const clipboardAPI of [false, true]) {
+    const copied: string[] = [];
+    const name = "literal <#?% ü>.txt";
+    const dom = new JSDOM(html, { runScripts: "outside-only", url: "file:///explorer/index.html?path=/work%20tree",
+      beforeParse(window) {
+        window.TextDecoder = TextDecoder;
+        (window as unknown as { worminal: object }).worminal = {
+          readDirectory: async () => [[Buffer.from(name).toString("base64"), false],
+                                     [Buffer.from("folder").toString("base64"), true]],
+        };
+        if (clipboardAPI) Object.defineProperty(window.navigator, "clipboard", {
+          value: { writeText: async (text: string) => { copied.push(text); } },
+        });
+        else window.document.execCommand = command => {
+          assert.equal(command, "copy");
+          copied.push(window.document.querySelector("textarea")!.value);
+          return true;
+        };
+      },
+    });
+    await runPage(dom);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const { document, KeyboardEvent } = dom.window;
+    const path = document.querySelector<HTMLElement>("#path")!;
+    const file = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === name)!;
+    const directory = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === "folder")!;
+    path.click();
+    file.click();
+    file.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    file.dispatchEvent(new KeyboardEvent("keydown", { key: " ", cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(copied, ["/work tree", ...Array(3).fill(`/work tree/${name}`)]);
+    assert.equal(file.hasAttribute("href"), false);
+    assert.equal(directory.hasAttribute("href"), true);
+    assert.equal(directory.hasAttribute("role"), false);
+    assert.equal(file.title, "Copied path");
+    assert.equal(document.querySelector("textarea"), null);
+    assert.equal(document.querySelector<HTMLAnchorElement>(".open-file")!.href,
+      "file:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
+    dom.window.close();
+  }
+});

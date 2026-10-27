@@ -44,3 +44,5 @@ WORMINAL_FONT_JSON optionally supplies the host font family, point size, and mea
 File names do not open files. Hover a row to reveal its gray open action before the size column; keyboard focus reveals it too.
 
 Hover previews support images, PDF first pages, and browser-supported video codecs (MP4, WebM, Ogg, MOV, and MKV). Videos are muted. Native PDF previews accept regular files up to 32 MiB.
+
+Click the current path or a file name to copy its full path; Enter and Space work with keyboard focus.

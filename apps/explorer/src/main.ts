@@ -24,6 +24,42 @@ function element<T extends HTMLElement>(id: string): T {
   return node as T;
 }
 
+async function copyPath(node: HTMLElement, value: string): Promise<void> {
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+    else {
+      // Local-file documents may lack the Clipboard API. Copy within the activation gesture.
+      const input = document.createElement("textarea");
+      input.value = value;
+      input.className = "clipboard-copy";
+      document.body.append(input);
+      const focused = document.activeElement as HTMLElement | null;
+      try {
+        input.select();
+        if (!document.execCommand("copy")) throw new Error("Copy failed");
+      } finally {
+        input.remove();
+        focused?.focus();
+      }
+    }
+    node.title = "Copied path";
+  } catch {
+    node.title = "Could not copy path";
+  }
+}
+
+function copyOnActivate(node: HTMLElement, value: () => string): void {
+  node.setAttribute("role", "button");
+  node.tabIndex = 0;
+  node.title = "Copy path";
+  node.addEventListener("click", () => { void copyPath(node, value()); });
+  node.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    node.click();
+  });
+}
+
 const entries = element<HTMLElement>("entries");
 const picker = element<HTMLInputElement>("picker");
 const open = element<HTMLButtonElement>("open");
@@ -35,6 +71,7 @@ const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "
 let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
 let current: Entry<File>[] = [];
 const path = element("path");
+copyOnActivate(path, () => path.textContent || "");
 const native = Boolean(window.worminal);
 let currentDirectory = "";
 let tree: FileTree<File> | undefined;
@@ -149,6 +186,7 @@ function render(list: Entry<File>[]): void {
       openFile.setAttribute("aria-label", `Open ${entry.name}`);
       mediaPreview(link, entry, openFile.href);
       link.removeAttribute("href");
+      copyOnActivate(link, () => native ? entry.path : `${tree!.rootName}/${entry.path}`);
       action.append(openFile);
     }
     const metadata = entryMetadata(entry);
