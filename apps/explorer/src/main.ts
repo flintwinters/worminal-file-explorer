@@ -66,6 +66,8 @@ const open = element<HTMLButtonElement>("open");
 const controls = [...element("sort").querySelectorAll<HTMLAnchorElement>("a")]
   .map(link => ({ link, label: link.textContent!, order: link.dataset.sort as SortOrder }));
 const query = new URLSearchParams(location.search);
+const hiddenControl = element("hidden-files");
+let showHidden = query.get("hidden") === "1";
 let order = controls.find(control => control.order === query.get("sort"))?.order || "modified";
 const defaultDescending = (sort: SortOrder) => sort === "modified" || sort === "size";
 let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescending(order);
@@ -135,7 +137,7 @@ document.addEventListener("scroll", hidePreview, true);
 
 function directoryURL(destination: string): string {
   const url = new URL(location.href);
-  url.search = new URLSearchParams({ path: destination, sort: order, desc: descending ? "1" : "0" }).toString();
+  url.search = new URLSearchParams({ path: destination, sort: order, desc: descending ? "1" : "0", ...(showHidden ? { hidden: "1" } : {}) }).toString();
   return url.href;
 }
 
@@ -158,6 +160,9 @@ function selectFile(path: string | null): void {
 function render(list: Entry<File>[]): void {
   hidePreview();
   current = list;
+  const visible = list.filter(entry => showHidden || !entry.name.startsWith("."));
+  hiddenControl.textContent = showHidden ? "Hide hidden files" : "Show hidden files";
+  hiddenControl.setAttribute("aria-pressed", String(showHidden));
   for (const control of controls) {
     const active = control.order === order;
     control.link.setAttribute("aria-current", String(active));
@@ -166,7 +171,7 @@ function render(list: Entry<File>[]): void {
   for (const url of urls) URL.revokeObjectURL(url);
   urls = [];
   const fragment = document.createDocumentFragment();
-  for (const entry of sortEntries(list, order, descending)) {
+  for (const entry of sortEntries(visible, order, descending)) {
     const link = document.createElement("a");
     link.className = "entry-name";
     link.textContent = entry.name;
@@ -216,7 +221,7 @@ function render(list: Entry<File>[]): void {
     fragment.append(row);
   }
   entries.replaceChildren(fragment);
-  selectFile(list.some(entry => !entry.directory && entry.path === selectedPath) ? selectedPath : null);
+  selectFile(visible.some(entry => !entry.directory && entry.path === selectedPath) ? selectedPath : null);
 }
 
 async function directory(destination: string): Promise<void> {
@@ -238,6 +243,10 @@ for (const control of controls) control.link.addEventListener("click", event => 
   if (order === "none") descending = false;
   render(current);
 });
+onActivate(hiddenControl, () => {
+  showHidden = !showHidden;
+  render(current);
+}, "Toggle hidden files");
 render(current);
 open.hidden = native;
 open.addEventListener("click", () => picker.click());
@@ -254,6 +263,20 @@ picker.addEventListener("change", () => {
 });
 
 document.addEventListener("keydown", event => {
+  if ((event.key === "ArrowUp" || event.key === "ArrowDown") &&
+      !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && selectedPath !== null) {
+    const rows = [...entries.querySelectorAll<HTMLElement>(".entry")]
+      .filter(row => row.querySelector(".entry-name[role=button]"));
+    const index = rows.findIndex(row => row.dataset.path === selectedPath);
+    if (index < 0) return;
+    event.preventDefault();
+    const next = rows[Math.max(0, Math.min(rows.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)))]!;
+    selectFile(next.dataset.path!);
+    next.querySelector<HTMLElement>(".entry-name")!.focus({ preventScroll: true });
+    next.scrollIntoView({ block: "nearest" });
+    hidePreview();
+    return;
+  }
   if (event.key !== "ArrowUp" || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   if (!native && !tree) return;
   event.preventDefault();

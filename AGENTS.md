@@ -4,6 +4,8 @@ Keep the explorer plain, dark, small, and local. Match the original native direc
 directory links, explicit file open actions, normal browser navigation, and the current path above plain text sorting links.
 Default to modified time descending; explicit URL sort choices override it.
 Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots. Avoid decorative styling.
+Dotfiles and dot-directories are hidden unless explicitly shown; directory links retain that choice.
+Up/Down moves between visible files in display order after selection, without wrapping.
 Clicking the current path copies it. Clicking a file selects its row; sorting preserves selection.
 File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.

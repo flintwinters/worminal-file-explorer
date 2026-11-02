@@ -436,3 +436,68 @@ test("path activation copies while file activation selects and sorting preserves
     dom.window.close();
   }
 });
+
+test("arrows follow visible file order and hidden entries require opting in", async () => {
+  const html = await readFile("dist/index.html", "utf8");
+  for (const native of [false, true]) {
+    const names = ["a.txt", ".secret", "b.txt", ".config", "folder", "c.txt"];
+    const dom = new JSDOM(html, { runScripts: "outside-only", url: "file:///explorer/index.html?path=/work&sort=none",
+      beforeParse(window) {
+        window.TextDecoder = TextDecoder;
+        window.HTMLElement.prototype.scrollIntoView = function(options) {
+          assert.equal(options?.block, "nearest");
+        };
+        window.URL.createObjectURL = file => `blob:local-${(file as File).name}`;
+        window.URL.revokeObjectURL = () => {};
+        if (native) (window as unknown as { worminal: object }).worminal = {
+          readDirectory: async () => names.map(name => [Buffer.from(name).toString("base64"), [".config", "folder"].includes(name)]),
+        };
+      },
+    });
+    await runPage(dom);
+    const { document, Event, KeyboardEvent } = dom.window;
+    if (native) await new Promise(resolve => setTimeout(resolve, 0));
+    else {
+      const picker = document.querySelector<HTMLInputElement>("#picker")!;
+      Object.defineProperty(picker, "files", { value: names.map(name =>
+        file(`root/${[".config", "folder"].includes(name) ? `${name}/child.txt` : name}`)) });
+      picker.dispatchEvent(new Event("change"));
+    }
+    const link = (name: string) => [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === name)!;
+    const selected = () => document.querySelector(".selected .entry-name")?.textContent;
+    const arrow = (key: string, modified = false) => {
+      const event = new KeyboardEvent("keydown", { key, ctrlKey: modified, bubbles: true, cancelable: true });
+      (document.activeElement || document).dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    assert.equal(link(".secret"), undefined);
+    assert.equal(link(".config"), undefined);
+    assert.equal(arrow("ArrowDown"), false);
+    link("a.txt").click();
+    assert.equal(arrow("ArrowUp"), true);
+    assert.equal(selected(), "a.txt");
+    arrow("ArrowDown");
+    assert.equal(selected(), "b.txt");
+    assert.equal(document.activeElement, link("b.txt"));
+    assert.equal(arrow("ArrowDown", true), false);
+    assert.equal(selected(), "b.txt");
+    arrow("ArrowDown");
+    arrow("ArrowDown");
+    assert.equal(selected(), "c.txt");
+    document.querySelector<HTMLElement>('[data-sort="name"]')!.click();
+    document.querySelector<HTMLElement>('[data-sort="name"]')!.click();
+    arrow("ArrowDown");
+    assert.equal(selected(), "b.txt");
+    const hidden = document.querySelector<HTMLElement>("#hidden-files")!;
+    hidden.click();
+    assert.ok(link(".secret"));
+    assert.ok(link(".config"));
+    assert.equal(selected(), "b.txt");
+    if (native) assert.equal(new URL((link("folder") as HTMLAnchorElement).href).searchParams.get("hidden"), "1");
+    link(".secret").click();
+    hidden.click();
+    assert.equal(selected(), undefined);
+    assert.equal(arrow("ArrowUp"), false);
+    dom.window.close();
+  }
+});
