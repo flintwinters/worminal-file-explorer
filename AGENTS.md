@@ -6,7 +6,8 @@ Default to modified time descending; explicit URL sort choices override it.
 Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots. Avoid decorative styling.
 Dotfiles and dot-directories are hidden unless explicitly shown; directory links retain that choice.
 Up/Down moves between visible files in display order after selection, without wrapping.
-Clicking the current path copies it. Clicking a file selects its row; sorting preserves selection.
+The tab title shows the current path. Clicking the current path copies it.
+Clicking a file selects its row; sorting preserves selection.
 File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
 Links reveal underlines on hover. Compile LS_COLORS into the artifact; browser code only matches the baked rules.

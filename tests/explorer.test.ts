@@ -60,11 +60,13 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   const name = "<img onerror=alert(1)>.txt";
   Object.defineProperty(picker, "files", { value: [file(`root/${name}`), file("root/sub/a.txt")] });
   picker.dispatchEvent(new Event("change"));
+  assert.equal(document.title, "root");
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name").length, 2);
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[1]!.textContent, name);
   assert.equal(document.querySelectorAll("#entries img, table, dialog, script[src], link[href]").length, 0);
   document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.equal(document.querySelector("#path")!.textContent, "root/sub");
+  assert.equal(document.title, "root/sub");
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name").length, 1);
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.textContent, "a.txt");
   assert.equal(document.querySelector("#entries .entry-name")!.hasAttribute("href"), false);
@@ -79,6 +81,7 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   assert.equal(document.querySelector("#path")!.textContent, "root/sub");
   up();
   assert.equal(document.querySelector("#path")!.textContent, "root");
+  assert.equal(document.title, "root");
   assert.equal(document.querySelectorAll("#entries .entry-name").length, 2);
   up();
   assert.equal(document.querySelector("#path")!.textContent, "root");
@@ -106,6 +109,7 @@ test("embedded sorting retains original order on request and keeps literal links
     const { document } = dom.window;
     assert.deepEqual(requests, ["/work tree"]);
     assert.equal(document.querySelector("#path")!.textContent, "/work tree");
+    assert.equal(document.title, "/work tree");
     assert.equal(document.body.firstElementChild!.id, "path");
     assert.equal(document.querySelectorAll("#sort button").length, 0);
     assert.equal(document.querySelectorAll("#sort a").length, 5);

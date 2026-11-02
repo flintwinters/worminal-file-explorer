@@ -144,6 +144,7 @@ function directoryURL(destination: string): string {
 function showDirectory(destination: string): void {
   currentDirectory = destination;
   path.textContent = native ? destination : [tree!.rootName, destination].filter(Boolean).join("/");
+  document.title = path.textContent;
   if (native) void directory(destination);
   else render(tree!.list(destination, "", "none"));
 }
