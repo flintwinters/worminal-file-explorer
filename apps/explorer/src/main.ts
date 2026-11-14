@@ -12,7 +12,7 @@ declare global {
 import "./style.css";
 
 if (__HOST_FONT__) {
-  document.documentElement.style.fontFamily = `${JSON.stringify(__HOST_FONT__.family)}, monospace`;
+  document.documentElement.style.fontFamily = `${__HOST_FONT__.family.split(",").map((name) => JSON.stringify(name.trim())).join(", ")}, monospace`;
   document.documentElement.style.fontSize = `${__HOST_FONT__.size}pt`;
   if (__HOST_FONT__.lineHeight !== undefined)
     document.documentElement.style.lineHeight = `${__HOST_FONT__.lineHeight}px`;
