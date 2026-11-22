@@ -10,7 +10,7 @@ async function runPage(dom: JSDOM): Promise<void> {
   const result = await transform(script, { define: { "import.meta.url": JSON.stringify(dom.window.location.href) } });
   dom.window.eval(result.code);
 }
-import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified } from "../packages/files/src/index";
+import { FileTree, sortEntries, parentDirectory, pathSegments, entryMetadata, formatSize, formatModified } from "../packages/files/src/index";
 import { compileLSColors, entryColor } from "../packages/files/src/colors";
 
 function file(path: string, text = "hello"): File {
@@ -67,6 +67,12 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.equal(document.querySelector("#path")!.textContent, "root/sub");
   assert.equal(document.title, "root/sub");
+  const rootSegment = document.querySelector<HTMLAnchorElement>("#path a.path-segment")!;
+  assert.equal(rootSegment.textContent, "root");
+  rootSegment.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  assert.equal(document.querySelector("#path")!.textContent, "root");
+  document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  assert.equal(document.querySelector("#path")!.textContent, "root/sub");
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name").length, 1);
   assert.equal(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!.textContent, "a.txt");
   assert.equal(document.querySelector("#entries .entry-name")!.hasAttribute("href"), false);
@@ -86,6 +92,14 @@ test("standalone page uses plain links and a read-only folder picker", async () 
   up();
   assert.equal(document.querySelector("#path")!.textContent, "root");
   dom.window.close();
+});
+
+test("path segments name each directory along the path", () => {
+  assert.deepEqual(pathSegments("/"), [{ name: "/", path: "/" }]);
+  assert.deepEqual(pathSegments("/work tree/a/"), [{ name: "/", path: "/" },
+    { name: "work tree", path: "/work tree" }, { name: "a", path: "/work tree/a" }]);
+  assert.deepEqual(pathSegments("sub/a"), [{ name: "sub", path: "sub" }, { name: "a", path: "sub/a" }]);
+  assert.deepEqual(pathSegments(""), []);
 });
 
 test("embedded sorting retains original order on request and keeps literal links", async () => {
@@ -111,6 +125,10 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelector("#path")!.textContent, "/work tree");
     assert.equal(document.title, "/work tree");
     assert.equal(document.body.firstElementChild!.id, "path");
+    const root = document.querySelector<HTMLAnchorElement>("#path a.path-segment")!;
+    assert.equal(root.textContent, "/");
+    assert.equal(new URL(root.href).searchParams.get("path"), "/");
+    assert.equal(document.querySelector("#path")!.lastElementChild!.tagName, "SPAN");
     assert.equal(document.querySelectorAll("#sort button").length, 0);
     assert.equal(document.querySelectorAll("#sort a").length, 5);
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
@@ -413,7 +431,7 @@ test("path activation copies while file activation selects and sorting preserves
     const path = document.querySelector<HTMLElement>("#path")!;
     const file = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === name)!;
     const directory = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === "folder")!;
-    path.click();
+    path.lastElementChild!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     file.click();
     assert.equal(file.getAttribute("aria-pressed"), "true");
     assert.equal(file.parentElement!.classList.contains("selected"), true);

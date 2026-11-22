@@ -1,4 +1,4 @@
-import { FileTree, sortEntries, parentDirectory, entryMetadata, formatSize, formatModified, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
+import { FileTree, sortEntries, parentDirectory, pathSegments, entryMetadata, formatSize, formatModified, entryColor, type Entry, type SortOrder, type FileColors } from "@worminal/files";
 declare const __HOST_FONT__: { family: string; size: number; lineHeight?: number } | null;
 declare const __FILE_COLORS__: FileColors;
 declare global {
@@ -74,7 +74,6 @@ let descending = query.has("desc") ? query.get("desc") === "1" : defaultDescendi
 let current: Entry<File>[] = [];
 let selectedPath: string | null = null;
 const path = element("path");
-onActivate(path, () => { void copyPath(path, path.textContent || ""); }, "Copy path");
 const native = Boolean(window.worminal);
 let currentDirectory = "";
 let tree: FileTree<File> | undefined;
@@ -141,10 +140,38 @@ function directoryURL(destination: string): string {
   return url.href;
 }
 
+/** Ancestor segments open their directory; the final segment copies the whole path. */
+function renderPath(): void {
+  const segments = native ? pathSegments(currentDirectory)
+    : [{ name: tree!.rootName, path: "" }, ...pathSegments(currentDirectory)];
+  const nodes: Node[] = [];
+  for (const [index, segment] of segments.entries()) {
+    if (index > 0 && segments[index - 1]!.name !== "/") nodes.push(document.createTextNode("/"));
+    const node = document.createElement(index === segments.length - 1 ? "span" : "a");
+    node.textContent = segment.name;
+    nodes.push(node);
+    if (node instanceof HTMLAnchorElement) {
+      node.className = "path-segment";
+      if (native) node.href = directoryURL(segment.path);
+      else {
+        node.href = `#${encodeURIComponent(segment.path)}`;
+        node.addEventListener("click", event => {
+          event.preventDefault();
+          showDirectory(segment.path);
+        });
+      }
+    }
+  }
+  path.replaceChildren(...nodes);
+  const whole = path.textContent || "";
+  const last = path.lastElementChild as HTMLElement | null;
+  if (last) onActivate(last, () => { void copyPath(last, whole); }, "Copy path");
+}
+
 function showDirectory(destination: string): void {
   currentDirectory = destination;
-  path.textContent = native ? destination : [tree!.rootName, destination].filter(Boolean).join("/");
-  document.title = path.textContent;
+  renderPath();
+  document.title = path.textContent || "";
   if (native) void directory(destination);
   else render(tree!.list(destination, "", "none"));
 }
@@ -169,6 +196,7 @@ function render(list: Entry<File>[]): void {
     control.link.setAttribute("aria-current", String(active));
     control.link.textContent = control.label + (active && order !== "none" ? descending ? " ↓" : " ↑" : "");
   }
+  if (native || tree) renderPath();
   for (const url of urls) URL.revokeObjectURL(url);
   urls = [];
   const fragment = document.createDocumentFragment();

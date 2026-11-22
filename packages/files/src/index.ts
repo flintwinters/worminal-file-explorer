@@ -112,6 +112,18 @@ export class FileTree<T extends SourceFile> {
 }
 
 /** Keep absolute paths at / and picker-relative paths inside their granted root. */
+/** Each directory along `path` with the name that labels it; an absolute path starts with the root `/`. */
+export function pathSegments(path: string): { name: string; path: string }[] {
+  const absolute = path.startsWith("/");
+  const segments = absolute ? [{ name: "/", path: "/" }] : [];
+  let prefix = "";
+  for (const name of path.split("/").filter(Boolean)) {
+    prefix = prefix || absolute ? `${prefix}/${name}` : name;
+    segments.push({ name, path: prefix });
+  }
+  return segments;
+}
+
 export function parentDirectory(path: string): string {
   const trimmed = path.replace(/\/+$/, "");
   const parent = trimmed.slice(0, Math.max(0, trimmed.lastIndexOf("/")));

@@ -6,7 +6,7 @@ Default to modified time descending; explicit URL sort choices override it.
 Alt+Up opens the parent directory, stopping at filesystem or folder-picker roots. Avoid decorative styling.
 Dotfiles and dot-directories are hidden unless explicitly shown; directory links retain that choice.
 Up/Down moves between visible files in display order after selection, without wrapping.
-The tab title shows the current path. Clicking the current path copies it.
+The tab title shows the current path. Clicking an ancestor path segment opens it; clicking the last copies the path.
 Clicking a file selects its row; sorting preserves selection.
 File names do not navigate; a gray open link before size appears on row hover or keyboard focus.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
