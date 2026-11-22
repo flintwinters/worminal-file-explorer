@@ -48,6 +48,23 @@ async function copyPath(node: HTMLElement, value: string): Promise<void> {
   }
 }
 
+function fileURL(path: string): string {
+  return `file://${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** Drags carry the absolute path: file managers and terminals take the URI, text fields the plain path. */
+function dragPath(node: HTMLElement, path: string): void {
+  node.draggable = true;
+  node.addEventListener("dragstart", event => {
+    const data = event.dataTransfer;
+    if (!data) return;
+    data.clearData();
+    data.setData("text/uri-list", fileURL(path));
+    data.setData("text/plain", path);
+    data.effectAllowed = "copy";
+  });
+}
+
 function onActivate(node: HTMLElement, action: () => void, title: string): void {
   node.setAttribute("role", "button");
   node.tabIndex = 0;
@@ -206,9 +223,8 @@ function render(list: Entry<File>[]): void {
     link.textContent = entry.name;
     link.style.cssText = entryColor(__FILE_COLORS__, entry.name, entry.directory);
     if (native) {
-      link.href = entry.directory
-        ? directoryURL(entry.path)
-        : `file://${entry.path.split("/").map(encodeURIComponent).join("/")}`;
+      link.href = entry.directory ? directoryURL(entry.path) : fileURL(entry.path);
+      dragPath(link, entry.path);
     } else if (entry.directory) {
       link.href = `#${encodeURIComponent(entry.path)}`;
       link.addEventListener("click", event => {
@@ -229,9 +245,19 @@ function render(list: Entry<File>[]): void {
       openFile.href = link.href;
       openFile.setAttribute("aria-label", `Open ${entry.name}`);
       mediaPreview(link, entry, openFile.href);
+      if (native) dragPath(openFile, entry.path);
       link.removeAttribute("href");
       onActivate(link, () => selectFile(entry.path), "Select file");
       action.append(openFile);
+    }
+    // Only a host directory listing knows absolute paths; a picked folder's entries are relative to it.
+    if (native) {
+      const copy = document.createElement("span");
+      copy.className = "copy-path";
+      copy.textContent = "copy";
+      onActivate(copy, () => { void copyPath(copy, entry.path); }, "Copy path");
+      copy.setAttribute("aria-label", `Copy path of ${entry.name}`);
+      action.append(copy);
     }
     const metadata = entryMetadata(entry);
     const size = document.createElement("span");
@@ -244,7 +270,7 @@ function render(list: Entry<File>[]): void {
     row.className = "entry";
     row.dataset.path = entry.path;
     if (!entry.directory) row.addEventListener("click", event => {
-      if (!(event.target as Element).closest(".entry-name, a[href]")) selectFile(entry.path);
+      if (!(event.target as Element).closest(".entry-name, a[href], [role=button]")) selectFile(entry.path);
     });
     row.append(link, action, size, modified);
     fragment.append(row);

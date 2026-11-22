@@ -155,8 +155,8 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelectorAll("#entries .entry").length, 2);
     const cells = [...document.querySelectorAll("#entries .entry")].map(row =>
       [...row.children].map(cell => cell.textContent));
-    assert.deepEqual(cells, [["literal <#?% ü>.txt", "open", "14", formatModified(1000)],
-                             ["empty", "", "", formatModified(2000)]]);
+    assert.deepEqual(cells, [["literal <#?% ü>.txt", "opencopy", "14", formatModified(1000)],
+                             ["empty", "copy", "", formatModified(2000)]]);
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
   }
@@ -443,6 +443,26 @@ test("path activation copies while file activation selects and sorting preserves
     file.dispatchEvent(new KeyboardEvent("keydown", { key: " ", cancelable: true }));
     await new Promise(resolve => setTimeout(resolve, 0));
     assert.deepEqual(copied, ["/work tree"]);
+    // Each entry's copy control copies its absolute path without selecting it.
+    const copy = directory.parentElement!.querySelector<HTMLElement>(".copy-path")!;
+    copy.click();
+    file.parentElement!.querySelector<HTMLElement>(".copy-path")!
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(copied.splice(1), ["/work tree/folder", `/work tree/${name}`]);
+    assert.equal(copy.title, "Copied path");
+    // Dragging a name or its open link offers the file to other programs.
+    for (const node of [file, directory, file.parentElement!.querySelector<HTMLElement>(".open-file")!]) {
+      const data = new Map<string, string>();
+      const drag = new dom.window.Event("dragstart", { bubbles: true });
+      Object.defineProperty(drag, "dataTransfer", { value: {
+        clearData: () => data.clear(), setData: (kind: string, value: string) => data.set(kind, value) } });
+      assert.equal(node.draggable, true);
+      node.dispatchEvent(drag);
+      const target = node === directory ? "/work tree/folder" : `/work tree/${name}`;
+      assert.equal(data.get("text/plain"), target);
+      assert.equal(data.get("text/uri-list"), "file://" + target.split("/").map(encodeURIComponent).join("/"));
+    }
     assert.equal(document.querySelectorAll(".entry.selected").length, 1);
     assert.equal(file.getAttribute("aria-pressed"), "true");
     assert.equal(file.hasAttribute("href"), false);
