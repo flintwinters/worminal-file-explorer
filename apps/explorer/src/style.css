@@ -1,7 +1,8 @@
 @import "./palette.css";
 html { background: var(--browser-background); color: var(--browser-foreground); }
 a { color: var(--browser-foreground); text-decoration: none; }
-a[href]:hover, [role="button"]:hover { text-decoration: underline; }
+/* Entry rows highlight on hover; underlining their links as well was noise. */
+#path a[href]:hover, [role="button"]:hover { text-decoration: underline; }
 [role="button"] { cursor: pointer; }
 #path { width: fit-content; }
 .clipboard-copy { position: fixed; opacity: 0; pointer-events: none; }
