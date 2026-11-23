@@ -43,7 +43,7 @@ python3 manage.py lint
 
 WORMINAL_FONT_JSON optionally supplies the host font family, point size, and measured pixel line height at build time.
 
-File names do not open files. Hover a row to reveal its gray open action before the size column; keyboard focus reveals it too.
+File names do not open files. Hover a row or focus it with the keyboard to reveal its actions over the filename.
 
 Hover previews support images, PDF first pages, and browser-supported video codecs (MP4, WebM, Ogg, MOV, and MKV). Videos are muted. Native PDF previews accept regular files up to 32 MiB.
 

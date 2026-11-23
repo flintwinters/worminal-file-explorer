@@ -297,6 +297,9 @@ function render(list: Entry<File>[]): void {
       urls.push(url);
       link.href = url;
     }
+    const nameCell = document.createElement("span");
+    nameCell.className = "name-cell";
+    nameCell.append(link);
     const action = document.createElement("span");
     action.className = "action";
     if (!entry.directory) {
@@ -327,7 +330,8 @@ function render(list: Entry<File>[]): void {
     if (!entry.directory) row.addEventListener("click", event => {
       if (!(event.target as Element).closest(".entry-name, a[href], [role=button]")) selectFile(entry.path);
     });
-    row.append(link, action);
+    if (action.childElementCount) nameCell.append(action);
+    row.append(nameCell);
     if (showSize.checked) {
       const size = document.createElement("span");
       size.className = "size";

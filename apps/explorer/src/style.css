@@ -15,9 +15,22 @@ a { color: var(--browser-foreground); text-decoration: none; }
 .entry a { min-width: 0; overflow-wrap: anywhere; }
 .action, .size, .modified { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .size { text-align: right; }
-.open-file, .copy-path { color: gray; opacity: 0; }
-.open-file + .copy-path { margin-left: 1ch; }
-.entry:hover :is(.open-file, .copy-path), .entry:focus-within :is(.open-file, .copy-path) { opacity: 1; }
+.name-cell { position: relative; }
+.action {
+  position: absolute;
+  inset-block-start: 0;
+  /* Keep the start of the filename clickable, even when the name column is narrow. */
+  inset-inline: 1ch 1ch;
+  display: flex;
+  justify-content: safe end;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+.action > * { color: gray; background: var(--browser-background); }
+.open-file + .copy-path { padding-inline-start: 1ch; }
+.entry:hover .action, .entry:focus-within .action { opacity: 1; }
+.entry:hover .action > *, .entry:focus-within .action > * { pointer-events: auto; }
 .image-preview { position: fixed; right: 1rem; top: 1rem; max-width: min(720px, 90vw); max-height: calc(100vh - 2rem); object-fit: contain; pointer-events: none; background: var(--browser-background); border: 1px solid var(--browser-foreground); z-index: 1; }
 #listing header { display: flex; justify-content: space-between; align-items: baseline; gap: 2ch; }
 #path { overflow-wrap: anywhere; }

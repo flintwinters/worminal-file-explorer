@@ -150,13 +150,15 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelector("#entries .entry-name")!.hasAttribute("href"), false);
     assert.equal(document.querySelector<HTMLAnchorElement>(".open-file")!.href, "file:///work%20tree/literal%20%3C%23%3F%25%20%C3%BC%3E.txt");
     assert.equal(document.querySelector(".open-file")!.getAttribute("aria-label"), "Open literal <#?% ü>.txt");
-    assert.equal(dom.window.getComputedStyle(document.querySelector(".open-file")!).opacity, "0");
+    const action = document.querySelector(".name-cell > .action")!;
+    assert.equal(dom.window.getComputedStyle(action).opacity, "0");
+    assert.equal(dom.window.getComputedStyle(action).position, "absolute");
     assert.equal(new URL(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[1]!.href).searchParams.get("path"), "/work tree/empty");
     assert.equal(document.querySelectorAll("#entries .entry").length, 2);
     const cells = [...document.querySelectorAll("#entries .entry")].map(row =>
-      [...row.children].map(cell => cell.textContent));
-    assert.deepEqual(cells, [["literal <#?% ü>.txt", "opencopy", "14", formatModified(1000)],
-                             ["empty", "copy", "", formatModified(2000)]]);
+      [...row.children].map(cell => (cell.querySelector(".entry-name") ?? cell).textContent));
+    assert.deepEqual(cells, [["literal <#?% ü>.txt", "14", formatModified(1000)],
+                             ["empty", "", formatModified(2000)]]);
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
   }
@@ -503,9 +505,9 @@ test("path activation copies while file activation selects and sorting preserves
     path.lastElementChild!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     file.click();
     assert.equal(file.getAttribute("aria-pressed"), "true");
-    assert.equal(file.parentElement!.classList.contains("selected"), true);
+    assert.equal(file.closest(".entry")!.classList.contains("selected"), true);
     const other = [...document.querySelectorAll<HTMLElement>(".entry-name")].find(node => node.textContent === "other.txt")!;
-    other.parentElement!.querySelector<HTMLElement>(".size")!.click();
+    other.closest(".entry")!.querySelector<HTMLElement>(".size")!.click();
     assert.equal(other.getAttribute("aria-pressed"), "true");
     assert.equal(file.getAttribute("aria-pressed"), "false");
     file.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));

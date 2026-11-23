@@ -8,7 +8,7 @@ Dotfiles and dot-directories are hidden unless explicitly shown; directory links
 Up/Down moves between visible files in display order after selection, without wrapping.
 The tab title shows the current path. Clicking an ancestor path segment opens it; clicking the last copies the path.
 Clicking a file selects its row; sorting preserves selection.
-File names do not navigate; gray open (files) and copy-path links before size appear on row hover or keyboard focus.
+File names do not navigate; open (files) and copy-path actions overlay names on row hover or keyboard focus.
 Dragging an entry offers its file URI and absolute path to other programs; copy and drag need host listings.
 Names, compact sizes, and local modification times share aligned columns; missing metadata stays blank.
 Links reveal underlines on hover. Compile LS_COLORS into the artifact; browser code only matches the baked rules.
