@@ -77,6 +77,65 @@ function onActivate(node: HTMLElement, action: () => void, title: string): void 
   });
 }
 
+const listing = element("listing");
+const settings = element("settings");
+const settingsLink = element("settings-link");
+const backToFiles = element("back-to-files");
+const showSize = element<HTMLInputElement>("show-size");
+const showModified = element<HTMLInputElement>("show-modified");
+const dateFormat = element<HTMLSelectElement>("date-format");
+const datePattern = element<HTMLInputElement>("date-pattern");
+const datePreview = element("date-preview");
+const customDate = element("custom-date");
+const settingsStatus = element("settings-status");
+const preferencesKey = "worminal.file-explorer.preferences";
+const sampleDate = new Date(2026, 10, 22, 14, 3, 9).getTime();
+
+try {
+  const saved = JSON.parse(localStorage.getItem(preferencesKey) ?? "null");
+  showSize.checked = saved?.showSize !== false;
+  showModified.checked = saved?.showModified !== false;
+  if ([...dateFormat.options].some(option => option.value === saved?.dateFormat))
+    dateFormat.value = saved.dateFormat;
+  if (typeof saved?.datePattern === "string") datePattern.value = saved.datePattern.slice(0, datePattern.maxLength);
+} catch {
+  // Storage may be disabled for local documents. The controls still work for this page.
+}
+
+function modifiedPattern(): string | undefined {
+  const pattern = dateFormat.value === "custom" ? datePattern.value : dateFormat.value;
+  return pattern.trim() ? pattern : undefined;
+}
+
+function showPage(moveFocus: boolean): void {
+  const editing = location.hash === "#settings";
+  if (editing) hidePreview();
+  else if (listing.hidden && entries.firstElementChild) render(current);
+  listing.hidden = editing;
+  settings.hidden = !editing;
+  updateDatePreview();
+  if (moveFocus) (editing ? backToFiles : settingsLink).focus();
+}
+
+function updateDatePreview(): void {
+  customDate.hidden = dateFormat.value !== "custom";
+  datePreview.textContent = formatModified(sampleDate, modifiedPattern());
+}
+
+settings.addEventListener("input", () => {
+  updateDatePreview();
+  try {
+    localStorage.setItem(preferencesKey, JSON.stringify({
+      showSize: showSize.checked, showModified: showModified.checked,
+      dateFormat: dateFormat.value, datePattern: datePattern.value,
+    }));
+    settingsStatus.textContent = "";
+  } catch {
+    settingsStatus.textContent = "Preferences are available for this page only.";
+  }
+});
+window.addEventListener("hashchange", () => showPage(true));
+
 const entries = element<HTMLElement>("entries");
 const picker = element<HTMLInputElement>("picker");
 const open = element<HTMLButtonElement>("open");
@@ -153,6 +212,7 @@ document.addEventListener("scroll", hidePreview, true);
 
 function directoryURL(destination: string): string {
   const url = new URL(location.href);
+  url.hash = "";
   url.search = new URLSearchParams({ path: destination, sort: order, desc: descending ? "1" : "0", ...(showHidden ? { hidden: "1" } : {}) }).toString();
   return url.href;
 }
@@ -216,6 +276,7 @@ function render(list: Entry<File>[]): void {
   if (native || tree) renderPath();
   for (const url of urls) URL.revokeObjectURL(url);
   urls = [];
+  const pattern = modifiedPattern();
   const fragment = document.createDocumentFragment();
   for (const entry of sortEntries(visible, order, descending)) {
     const link = document.createElement("a");
@@ -260,19 +321,25 @@ function render(list: Entry<File>[]): void {
       action.append(copy);
     }
     const metadata = entryMetadata(entry);
-    const size = document.createElement("span");
-    size.className = "size";
-    size.textContent = entry.directory ? "" : formatSize(metadata.size);
-    const modified = document.createElement("span");
-    modified.className = "modified";
-    modified.textContent = formatModified(metadata.modified);
     const row = document.createElement("div");
     row.className = "entry";
     row.dataset.path = entry.path;
     if (!entry.directory) row.addEventListener("click", event => {
       if (!(event.target as Element).closest(".entry-name, a[href], [role=button]")) selectFile(entry.path);
     });
-    row.append(link, action, size, modified);
+    row.append(link, action);
+    if (showSize.checked) {
+      const size = document.createElement("span");
+      size.className = "size";
+      size.textContent = entry.directory ? "" : formatSize(metadata.size);
+      row.append(size);
+    }
+    if (showModified.checked) {
+      const modified = document.createElement("span");
+      modified.className = "modified";
+      modified.textContent = formatModified(metadata.modified, pattern);
+      row.append(modified);
+    }
     fragment.append(row);
   }
   entries.replaceChildren(fragment);
@@ -318,6 +385,7 @@ picker.addEventListener("change", () => {
 });
 
 document.addEventListener("keydown", event => {
+  if (listing.hidden) return;
   if ((event.key === "ArrowUp" || event.key === "ArrowDown") &&
       !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && selectedPath !== null) {
     const rows = [...entries.querySelectorAll<HTMLElement>(".entry")]
@@ -342,3 +410,4 @@ document.addEventListener("keydown", event => {
 });
 
 if (native) showDirectory(query.get("path") || query.get("cwd") || "/");
+showPage(false);

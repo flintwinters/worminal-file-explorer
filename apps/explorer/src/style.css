@@ -19,3 +19,10 @@ a { color: var(--browser-foreground); text-decoration: none; }
 .open-file + .copy-path { margin-left: 1ch; }
 .entry:hover :is(.open-file, .copy-path), .entry:focus-within :is(.open-file, .copy-path) { opacity: 1; }
 .image-preview { position: fixed; right: 1rem; top: 1rem; max-width: min(720px, 90vw); max-height: calc(100vh - 2rem); object-fit: contain; pointer-events: none; background: var(--browser-background); border: 1px solid var(--browser-foreground); z-index: 1; }
+#listing header { display: flex; justify-content: space-between; align-items: baseline; gap: 2ch; }
+#path { overflow-wrap: anywhere; }
+#settings a:hover, #settings-link:hover { text-decoration: underline; }
+#settings label { display: block; }
+#settings label[for="date-format"], #custom-date { margin-top: 1em; }
+#settings input, #settings select { font: inherit; }
+#date-tokens { max-width: 70ch; }

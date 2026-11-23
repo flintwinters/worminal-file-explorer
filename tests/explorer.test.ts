@@ -124,7 +124,7 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.deepEqual(requests, ["/work tree"]);
     assert.equal(document.querySelector("#path")!.textContent, "/work tree");
     assert.equal(document.title, "/work tree");
-    assert.equal(document.body.firstElementChild!.id, "path");
+    assert.equal(document.querySelector("#listing header")!.firstElementChild!.id, "path");
     const root = document.querySelector<HTMLAnchorElement>("#path a.path-segment")!;
     assert.equal(root.textContent, "/");
     assert.equal(new URL(root.href).searchParams.get("path"), "/");
@@ -134,7 +134,7 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelector<HTMLButtonElement>("#open")!.hidden, true);
     assert.deepEqual(Array.from(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name"), link => link.textContent), ["empty", "literal <#?% ü>.txt"]);
     assert.equal(dom.window.getComputedStyle(document.querySelectorAll<HTMLAnchorElement>("#entries .entry-name")[0]!).textDecoration, "none");
-    assert.equal(document.querySelectorAll("select").length, 0);
+    assert.equal(document.querySelectorAll("#listing select").length, 0);
     const click = (key: string) => document.querySelector<HTMLAnchorElement>(`[data-sort="${key}"]`)!.click();
     assert.equal(document.querySelector('[data-sort="modified"]')!.textContent, "Modified ↓");
     click("modified");
@@ -160,6 +160,75 @@ test("embedded sorting retains original order on request and keeps literal links
     assert.equal(document.querySelectorAll("#entries img, table, dialog").length, 0);
     dom.window.close();
   }
+});
+
+test("settings preview date formats and restore column preferences when the explorer reopens", async () => {
+  const html = await readFile("dist/index.html", "utf8");
+  const timestamp = new Date(2026, 10, 22, 14, 3, 9).getTime();
+  const stored = new Map<string, string>();
+  async function open() {
+    const dom = new JSDOM(html, { runScripts: "outside-only", url: "file:///explorer/index.html?path=/work",
+      beforeParse(window) {
+        window.TextDecoder = TextDecoder;
+        Object.defineProperty(window, "localStorage", {
+          value: { getItem: (key: string) => stored.get(key), setItem: stored.set.bind(stored) },
+        });
+        (window as unknown as { worminal: object }).worminal = {
+          readDirectory: async () => [["YS50eHQ=", false, 14, timestamp]],
+        };
+      },
+    });
+    await runPage(dom);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return dom;
+  }
+
+  const dom = await open();
+  const { document } = dom.window;
+  const get = <T extends HTMLElement>(id: string) => document.getElementById(id)! as T;
+  async function follow(id: string) {
+    const changed = new Promise(resolve => dom.window.addEventListener("hashchange", resolve, { once: true }));
+    get(id).click();
+    await changed;
+  }
+  function change(control: HTMLInputElement | HTMLSelectElement, value: string | boolean) {
+    if (typeof value === "string") control.value = value;
+    else (control as HTMLInputElement).checked = value;
+    control.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  }
+
+  assert.equal(document.querySelector(".size")!.textContent, "14");
+  assert.equal(document.querySelector(".modified")!.textContent, "26-11-22 14:03");
+  await follow("settings-link");
+  assert.equal(get("listing").hidden, true);
+  assert.equal(get("settings").hidden, false);
+  const format = get<HTMLSelectElement>("date-format");
+  assert.equal(get("date-preview").textContent, "26-11-22 14:03");
+  for (const [index, expected] of ["2026-11-22", "11/22/2026", "22/11/2026"].entries()) {
+    change(format, format.options[index + 1]!.value);
+    assert.equal(get("date-preview").textContent, expected);
+  }
+  change(format, "custom");
+  assert.equal(get("custom-date").hidden, false);
+  change(get<HTMLInputElement>("date-pattern"), "%d.%m.%Y %H:%M:%S %%");
+  assert.equal(get("date-preview").textContent, "22.11.2026 14:03:09 %");
+  change(get<HTMLInputElement>("show-size"), false);
+  await follow("back-to-files");
+  assert.equal(get("listing").hidden, false);
+  assert.equal(document.querySelector(".size"), null);
+  assert.equal(document.querySelector(".modified")!.textContent, "22.11.2026 14:03:09 %");
+  await follow("settings-link");
+  change(get<HTMLInputElement>("show-modified"), false);
+  await follow("back-to-files");
+  assert.equal(document.querySelector(".modified"), null);
+  dom.window.close();
+
+  const reopened = await open();
+  const restored = reopened.window.document;
+  assert.ok(restored.querySelector(".entry"));
+  assert.equal(restored.querySelector(".size, .modified"), null);
+  assert.equal(restored.querySelector("#date-preview")!.textContent, "22.11.2026 14:03:09 %");
+  reopened.window.close();
 });
 
 test("build exports only the runtime HTML document", async () => {

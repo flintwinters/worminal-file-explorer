@@ -28,14 +28,23 @@ export function formatSize(size?: number): string {
   return `${Number(value.toFixed(unit && value < 10 ? 1 : 0))}${["", "K", "M", "G", "T", "P", "E"][unit]}`;
 }
 
-/** Local time to the minute, with a fixed-width two-digit date. */
-export function formatModified(modified?: number): string {
+/** Format a local modification time. The default preserves the compact listing layout. */
+export function formatModified(modified?: number, pattern = "%y-%m-%d %H:%M"): string {
   if (modified === undefined || !Number.isFinite(modified)) return "";
   const date = new Date(modified);
   if (Number.isNaN(date.getTime())) return "";
   const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(date.getFullYear() % 100)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-         `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const tokens = {
+    Y: String(date.getFullYear()).padStart(4, "0"),
+    y: pad(date.getFullYear() % 100),
+    m: pad(date.getMonth() + 1),
+    d: pad(date.getDate()),
+    H: pad(date.getHours()),
+    M: pad(date.getMinutes()),
+    S: pad(date.getSeconds()),
+    "%": "%",
+  };
+  return pattern.replace(/%([YymdHMS%])/g, (_, token: keyof typeof tokens) => tokens[token]);
 }
 
 export type SortOrder = "name" | "extension" | "modified" | "size" | "none";

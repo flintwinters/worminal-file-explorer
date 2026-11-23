@@ -6,18 +6,44 @@
   <title>Files — Worminal</title>
 </head>
 <body>
-  <div id="path"></div>
-  <input id="picker" type="file" webkitdirectory multiple hidden>
-  <button id="open" type="button" hidden>Open folder…</button>
-  <nav id="sort" aria-label="Sort">
-    <a href="#" data-sort="name">Name</a>
-    <a href="#" data-sort="extension">Extension</a>
-    <a href="#" data-sort="modified">Modified</a>
-    <a href="#" data-sort="size">Size</a>
-    <a href="#" data-sort="none">Original</a>
-  </nav>
-  <a id="hidden-files">Show hidden files</a>
-  <main id="entries"></main>
+  <div id="listing">
+    <header>
+      <div id="path"></div>
+      <a id="settings-link" href="#settings">Settings</a>
+    </header>
+    <input id="picker" type="file" webkitdirectory multiple hidden>
+    <button id="open" type="button" hidden>Open folder…</button>
+    <nav id="sort" aria-label="Sort">
+      <a href="#" data-sort="name">Name</a>
+      <a href="#" data-sort="extension">Extension</a>
+      <a href="#" data-sort="modified">Modified</a>
+      <a href="#" data-sort="size">Size</a>
+      <a href="#" data-sort="none">Original</a>
+    </nav>
+    <a id="hidden-files">Show hidden files</a>
+    <main id="entries"></main>
+  </div>
+  <main id="settings" hidden>
+    <a id="back-to-files" href="#">Back to files</a>
+    <h1>Settings</h1>
+    <label><input id="show-size" type="checkbox" checked> Show file sizes</label>
+    <label><input id="show-modified" type="checkbox" checked> Show modification dates</label>
+    <label for="date-format">Date format</label>
+    <select id="date-format">
+      <option value="">Default</option>
+      <option value="%Y-%m-%d">ISO</option>
+      <option value="%m/%d/%Y">Month first</option>
+      <option value="%d/%m/%Y">Day first</option>
+      <option value="custom">Custom</option>
+    </select>
+    <div id="custom-date" hidden>
+      <label for="date-pattern">Custom date format</label>
+      <input id="date-pattern" type="text" maxlength="100" placeholder="%Y-%m-%d %H:%M" aria-describedby="date-tokens">
+      <p id="date-tokens">%Y year, %y two-digit year, %m month, %d day, %H hour (24-hour), %M minute, %S second, %% percent sign.</p>
+    </div>
+    <p>Preview <output id="date-preview"></output></p>
+    <p id="settings-status" role="status"></p>
+  </main>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
